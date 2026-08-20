@@ -1,13 +1,19 @@
 from contextlib import asynccontextmanager
 from uuid import UUID
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
-from app.models import Incident
-from app.schemas import IncidentCreate, IncidentResponse, IncidentUpdate
-
+from app.models import ChangeEvent, Incident
+from app.schemas import (
+    ChangeEventCreate, 
+    ChangeEventResponse,
+    IncidentCreate, 
+    IncidentResponse, 
+    IncidentUpdate
+)
+from app.services import find_related_change_events
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,11 +57,31 @@ def create_incident(
     response_model=list[IncidentResponse],
 )
 def list_incidents(
+    severity: str | None = None,
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+    ),
+    service_name: str | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[Incident]:
-    statement = select(Incident).order_by(
+    statement = select(Incident)
+
+    if severity:
+        statement = statement.where(Incident.severity == severity)
+
+    if status_filter:
+        statement = statement.where(Incident.status == status_filter)
+
+    if service_name:
+        statement = statement.where(
+            Incident.service_name == service_name,
+        )
+
+    statement = statement.order_by(
         Incident.created_at.desc(),
-    )
+    ).limit(limit)
 
     return list(db.scalars(statement).all())
 
@@ -103,3 +129,71 @@ def update_incident(
     db.refresh(incident)
 
     return incident
+
+@app.post(
+    "/change-events",
+    response_model=ChangeEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_change_event(
+    event_data: ChangeEventCreate,
+    db: Session = Depends(get_db),
+) -> ChangeEvent:
+    event = ChangeEvent(**event_data.model_dump(exclude_none=True))
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+
+    return event
+
+@app.get(
+    "/change-events",
+    response_model=list[ChangeEventResponse],
+)
+def list_change_events(
+    service_name: str | None = None,
+    event_type: str | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> list[ChangeEvent]:
+    statement = select(ChangeEvent)
+
+    if service_name:
+        statement = statement.where(
+            ChangeEvent.service_name == service_name,
+        )
+
+    if event_type:
+        statement = statement.where(
+            ChangeEvent.event_type == event_type,
+        )
+
+    statement = statement.order_by(
+        ChangeEvent.occurred_at.desc(),
+    ).limit(limit)
+
+    return list(db.scalars(statement).all())
+
+@app.get(
+    "/incidents/{incident_id}/related-change-events",
+    response_model=list[ChangeEventResponse],
+)
+def get_related_change_events(
+    incident_id: UUID,
+    window_minutes: int = Query(default=30, ge=1, le=240),
+    db: Session = Depends(get_db),
+) -> list[ChangeEvent]:
+    incident, events = find_related_change_events(
+        db=db,
+        incident_id=incident_id,
+        window_minutes=window_minutes,
+    )
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    return events

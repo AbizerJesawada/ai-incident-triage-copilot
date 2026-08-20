@@ -40,3 +40,23 @@ class Incident(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+class ChangeEvent(Base):
+    __tablename__ = "change_events"
+
+    id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    service_name: Mapped[str] = mapped_column(String(100))
+    event_type: Mapped[str] = mapped_column(String(30))
+    description: Mapped[str] = mapped_column(Text)
+    reference_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
