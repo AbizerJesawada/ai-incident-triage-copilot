@@ -73,3 +73,15 @@ class ChangeEventResponse(BaseModel):
     description: str
     reference_id: str | None
     occurred_at: datetime
+
+class IncidentClassificationRequest(BaseModel):
+    title: str = Field(min_length=3, max_length=200)
+    description: str = Field(min_length=3)
+    service_name: str = Field(min_length=2, max_length=100)
+
+
+class IncidentClassificationResponse(BaseModel):
+    predicted_category: str
+    predicted_severity: Severity
+    category_confidence: float
+    severity_confidence: float

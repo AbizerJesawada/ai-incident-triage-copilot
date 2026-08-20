@@ -299,3 +299,331 @@ docker compose down -v
 8. Add structured, cited LLM recommendations and citation validation.
 9. Add human approval, feedback, evaluation, and audit workflows.
 10. Build the Next.js incident triage frontend.
+
+
+
+Copy this entire section into `README.md` before `## Next Steps`:
+
+````md
+## Day 3: Incident Filtering and Temporal Change Correlation
+
+Day 3 adds the first investigation features to the incident triage backend.
+
+The system can now:
+
+- Filter incidents by severity, status, and affected service.
+- Store important system changes as change events.
+- Filter change events by service and event type.
+- Find change events that occurred close to an incident.
+- Validate incident severity, incident status, and event-type values.
+
+### Incident Filtering
+
+The incident list endpoint supports filters so the frontend does not need to receive every incident.
+
+| Filter | Example |
+|---|---|
+| Severity | `GET /incidents?severity=critical` |
+| Status | `GET /incidents?status=investigating` |
+| Service | `GET /incidents?service_name=payment-api` |
+| Maximum results | `GET /incidents?limit=10` |
+
+Filters can be combined:
+
+```text
+GET /incidents?service_name=payment-api&status=investigating
+```
+
+### Change Events
+
+A change event records an important change to a service that might be connected to a later incident.
+
+Supported change-event types:
+
+- `deployment`
+- `configuration_change`
+- `feature_flag`
+
+Example:
+
+```json
+{
+  "service_name": "payment-api",
+  "event_type": "deployment",
+  "description": "Deployed payment-api version 2.4 before checkout errors began.",
+  "reference_id": "deploy-482",
+  "occurred_at": "2026-08-19T17:35:00Z"
+}
+```
+
+Change-event endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/change-events` | Create a change event |
+| `GET` | `/change-events` | List change events |
+| `GET` | `/change-events?service_name=payment-api` | List events for one service |
+| `GET` | `/change-events?event_type=deployment` | List deployment events |
+
+### Temporal Correlation
+
+Temporal correlation helps an engineer answer:
+
+> What changed shortly before this incident started?
+
+The endpoint is:
+
+```text
+GET /incidents/{incident_id}/related-change-events
+```
+
+It performs these steps:
+
+1. Finds the specific incident using its ID.
+2. Reads the incident's affected service and creation time.
+3. Searches for change events from the same service.
+4. Keeps events inside the selected time window.
+5. Returns those events as possible investigation clues.
+
+Example:
+
+```text
+17:35 - payment-api deployment
+17:40 - payment-api checkout incident
+```
+
+Request:
+
+```text
+GET /incidents/3fe2b29e-1e63-4d13-ad66-98cb72e15aad/related-change-events?window_minutes=30
+```
+
+Result:
+
+```text
+The payment-api deployment happened five minutes before the incident.
+It is a possible related change that an engineer should investigate.
+```
+
+Temporal correlation does not prove that a change caused an incident. It identifies relevant recent changes for investigation.
+
+### API Validation
+
+The API now accepts only consistent values.
+
+Incident severity:
+
+```text
+unknown
+low
+medium
+high
+critical
+```
+
+Incident status:
+
+```text
+open
+investigating
+resolved
+```
+
+Change-event type:
+
+```text
+deployment
+configuration_change
+feature_flag
+```
+
+If a user sends an invalid value, such as:
+
+```json
+{
+  "severity": "very-urgent"
+}
+```
+
+the API rejects the request with HTTP status code `422`.
+
+### Day 3 Verification
+
+Day 3 was verified through FastAPI Swagger at:
+
+```text
+http://localhost:8000/docs
+```
+
+Verified behaviors:
+
+- Incident filters return only matching incidents.
+- Change events can be created and listed.
+- Related change events are found by incident ID, service name, and time window.
+- Invalid severity values are rejected.
+- PostgreSQL continues to store incident and change-event data in the Docker volume.
+````
+
+Add this complete Day 4 section to `README.md` before `## Next Steps`:
+
+````md
+## Day 4: ML Incident Classification Baseline
+
+Day 4 adds the first machine-learning baseline for incident triage.
+
+The backend can now classify new incident text into:
+
+- A predicted incident category
+- A predicted severity level
+- A confidence score for each prediction
+
+### Training Dataset
+
+The training dataset is:
+
+```text
+sample-data/incidents_training.csv
+```
+
+It contains synthetic labeled examples with these fields:
+
+```text
+title
+description
+service_name
+category
+severity
+```
+
+Supported categories:
+
+```text
+application_error
+database
+network
+authentication
+```
+
+Supported severity levels:
+
+```text
+low
+medium
+high
+critical
+```
+
+### ML Pipeline
+
+The ML pipeline is:
+
+```text
+Incident title + description + service name
+        ↓
+TF-IDF vectorizer converts text into numeric features
+        ↓
+Logistic Regression category model
+        ↓
+Predicted category + probability
+
+Incident title + description + service name
+        ↓
+TF-IDF vectorizer converts text into numeric features
+        ↓
+Logistic Regression severity model
+        ↓
+Predicted severity + probability
+```
+
+Two models are trained because category and severity answer different questions:
+
+```text
+Category: What kind of incident is this?
+Severity: How serious is this incident?
+```
+
+### Train the Models
+
+Build the backend image:
+
+```bash
+docker compose build backend
+```
+
+Train both models inside Docker:
+
+```bash
+docker compose run --rm backend python training/train_incident_classifier.py
+```
+
+Training reads:
+
+```text
+/data/incidents_training.csv
+```
+
+and saves generated artifacts locally:
+
+```text
+backend/artifacts/incident_classifier.joblib
+backend/artifacts/incident_classifier_metadata.json
+```
+
+The trained model files are ignored by Git because they are generated outputs.
+
+### ML API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/ml/classify-incident` | Predict incident category, severity, and confidence |
+| `GET` | `/ml/model-metadata` | View training data details and evaluation metrics |
+
+Example classification request:
+
+```json
+{
+  "title": "Database connection pool exhausted",
+  "description": "New payment requests cannot get a PostgreSQL connection and checkout is failing.",
+  "service_name": "payment-api"
+}
+```
+
+Example response:
+
+```json
+{
+  "predicted_category": "database",
+  "predicted_severity": "critical",
+  "category_confidence": 0.3581,
+  "severity_confidence": 0.3935
+}
+```
+
+### Baseline Evaluation
+
+The first training run used 32 synthetic examples:
+
+```text
+Training rows: 24
+Test rows: 8
+Category accuracy: 0.50
+Severity accuracy: 0.125
+```
+
+These results are intentionally treated as a weak baseline, not production-quality performance.
+
+The small synthetic dataset has too few varied examples, especially for reliable severity prediction. Therefore, ML predictions must remain advisory and require human review.
+
+### MLOps Learning
+
+The project now records:
+
+- Training timestamp
+- Dataset path
+- Dataset row count
+- Training and test row counts
+- Category accuracy and classification report
+- Severity accuracy and classification report
+
+This makes model quality visible and traceable. Later improvements will include larger data, model comparison, probability calibration, monitoring, feedback, and retraining.
+````

@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 node_modules/
 .next/
+backend/artifacts/*.joblib
+backend/artifacts/*.json

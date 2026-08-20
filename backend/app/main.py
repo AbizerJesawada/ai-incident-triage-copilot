@@ -7,13 +7,19 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, get_db
 from app.models import ChangeEvent, Incident
 from app.schemas import (
-    ChangeEventCreate, 
+    ChangeEventCreate,
     ChangeEventResponse,
-    IncidentCreate, 
-    IncidentResponse, 
-    IncidentUpdate
+    IncidentClassificationRequest,
+    IncidentClassificationResponse,
+    IncidentCreate,
+    IncidentResponse,
+    IncidentUpdate,
 )
 from app.services import find_related_change_events
+from app.ml_classifier import (
+    get_model_metadata,
+    predict_incident,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -197,3 +203,26 @@ def get_related_change_events(
         )
 
     return events
+
+@app.post(
+    "/ml/classify-incident",
+    response_model=IncidentClassificationResponse,
+)
+def classify_incident(
+    incident_data: IncidentClassificationRequest,
+) -> dict[str, object]:
+    return predict_incident(
+        title=incident_data.title,
+        description=incident_data.description,
+        service_name=incident_data.service_name,
+    )
+
+@app.get("/ml/model-metadata")
+def get_incident_classifier_metadata() -> dict:
+    try:
+        return get_model_metadata()
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(error),
+        ) from error

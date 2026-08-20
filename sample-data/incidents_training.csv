@@ -1,0 +1,33 @@
+title,description,service_name,category,severity
+Payment API returns 500 errors,"Customers receive HTTP 500 errors during checkout requests.",payment-api,application_error,high
+Checkout request validation failed,"The checkout service rejects valid payment requests after a recent release.",checkout-api,application_error,medium
+Order processing worker crashed,"The order worker exits with an unhandled exception while processing orders.",order-worker,application_error,high
+Search API returns empty results,"The search endpoint returns empty results even when matching products exist.",search-api,application_error,medium
+Invoice generation job failed,"The billing job cannot generate customer invoices because of an application exception.",billing-worker,application_error,high
+Profile API response serialization error,"The profile endpoint fails while converting account data into a response.",profile-api,application_error,medium
+Recommendation service crash loop,"The recommendation service repeatedly restarts after a runtime exception.",recommendation-api,application_error,critical
+Webhook handler returns 500,"Incoming payment-provider webhooks fail with an application error.",webhook-api,application_error,high
+Database connection pool exhausted,"New requests cannot get a database connection because the pool is exhausted.",payment-api,database,critical
+PostgreSQL replication lag is high,"Read replicas are several minutes behind the primary database.",reporting-api,database,high
+Database query timeout,"Customer lookup queries exceed the configured database timeout.",customer-api,database,high
+Migration lock blocks writes,"A database migration holds a lock and prevents order updates.",order-api,database,critical
+Database disk space warning,"The PostgreSQL data volume is above eighty percent capacity.",database,database,medium
+Slow database query detected,"A reporting query scans too many rows and slows the dashboard.",reporting-api,database,medium
+Database authentication failed,"The service cannot connect because its database credentials were rejected.",inventory-api,database,high
+Cache database unavailable,"The session store cannot reach the database used for persistent cache data.",session-api,database,high
+External payment gateway timeout,"Requests to the payment provider time out after thirty seconds.",payment-api,network,high
+Service DNS lookup failed,"The order service cannot resolve the inventory service hostname.",order-api,network,high
+Load balancer health check failed,"The load balancer marks all instances of the catalog service unhealthy.",catalog-api,network,critical
+High packet loss between services,"Requests between checkout and payment services fail intermittently.",checkout-api,network,high
+CDN connection issue,"Static assets load slowly because the CDN origin connection is unstable.",frontend,network,medium
+Internal API connection refused,"The notification service rejects connections from the order worker.",notification-api,network,medium
+Network latency increased,"Requests to the search cluster have unusually high latency.",search-api,network,medium
+Webhook provider unreachable,"The external provider cannot deliver webhooks to the public endpoint.",webhook-api,network,low
+User login fails with invalid token,"Valid users cannot log in because access tokens are rejected.",auth-api,authentication,high
+Single sign-on provider unavailable,"Employees cannot sign in because the SSO provider connection fails.",auth-api,authentication,critical
+Expired service credential,"The reporting service fails because its service account credential expired.",reporting-api,authentication,high
+Password reset email token invalid,"Users cannot reset passwords because reset tokens fail validation.",identity-api,authentication,medium
+API key rejected by payment provider,"Payment requests fail because the external API key is invalid.",payment-api,authentication,high
+Role permission denied,"Support users cannot access the incident dashboard due to missing permissions.",dashboard,authentication,low
+Authentication rate limit triggered,"A large number of login attempts causes legitimate users to be rate limited.",auth-api,authentication,medium
+OAuth callback mismatch,"Login fails because the OAuth redirect URL does not match the configured value.",auth-api,authentication,medium
