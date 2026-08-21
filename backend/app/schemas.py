@@ -85,3 +85,13 @@ class IncidentClassificationResponse(BaseModel):
     predicted_severity: Severity
     category_confidence: float
     severity_confidence: float
+
+class IncidentRoutingResponse(BaseModel):
+    predicted_category: str
+    predicted_severity: Severity
+    category_confidence: float
+    severity_confidence: float
+    route: str
+    model_tier: str
+    human_review_required: bool
+    reason: str

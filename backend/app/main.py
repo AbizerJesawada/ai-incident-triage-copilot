@@ -14,13 +14,14 @@ from app.schemas import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
+    IncidentRoutingResponse,
 )
 from app.services import find_related_change_events
 from app.ml_classifier import (
     get_model_metadata,
     predict_incident,
 )
-
+from app.escalation_router import route_incident
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -226,3 +227,33 @@ def get_incident_classifier_metadata() -> dict:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error),
         ) from error
+
+@app.post(
+    "/ml/route-incident",
+    response_model=IncidentRoutingResponse,
+)
+def route_new_incident(
+    incident_data: IncidentClassificationRequest,
+) -> dict[str, object]:
+    prediction = predict_incident(
+        title=incident_data.title,
+        description=incident_data.description,
+        service_name=incident_data.service_name,
+    )
+
+    routing = route_incident(
+        predicted_severity=str(
+            prediction["predicted_severity"],
+        ),
+        category_confidence=float(
+            prediction["category_confidence"],
+        ),
+        severity_confidence=float(
+            prediction["severity_confidence"],
+        ),
+    )
+
+    return {
+        **prediction,
+        **routing,
+    }

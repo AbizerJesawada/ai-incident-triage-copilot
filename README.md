@@ -627,3 +627,71 @@ The project now records:
 
 This makes model quality visible and traceable. Later improvements will include larger data, model comparison, probability calibration, monitoring, feedback, and retraining.
 ````
+
+## Day 5: Confidence-Based Escalation Routing
+
+Day 5 adds safety routing after ML classification.
+
+The ML model predicts incident category, severity, and confidence. The escalation router then decides whether the incident can follow standard triage or needs stronger analysis and mandatory engineer review.
+
+### Routing Rules
+
+| Condition | Route | Model Tier | Human Review |
+|---|---|---|---|
+| Predicted severity is `critical` | `critical_escalation` | `strong` | Required |
+| Category or severity confidence is below `0.70` | `uncertain_escalation` | `strong` | Required |
+| Predicted severity is `high` | `high_priority_review` | `strong` | Required |
+| Low or medium severity with sufficient confidence | `standard_triage` | `standard` | Not required |
+
+### Routing API
+
+```text
+POST /ml/route-incident
+```
+
+This endpoint:
+
+1. Receives a title, description, and service name.
+2. Uses the ML models to predict category and severity.
+3. Reads both confidence scores.
+4. Applies the routing rules.
+5. Returns the recommended workflow and review requirement.
+
+Example request:
+
+```json
+{
+  "title": "Database connection pool exhausted",
+  "description": "New payment requests cannot get a PostgreSQL connection and checkout is failing.",
+  "service_name": "payment-api"
+}
+```
+
+Example response:
+
+```json
+{
+  "predicted_category": "database",
+  "predicted_severity": "critical",
+  "category_confidence": 0.3581,
+  "severity_confidence": 0.3935,
+  "route": "critical_escalation",
+  "model_tier": "strong",
+  "human_review_required": true,
+  "reason": "The incident is predicted as critical, so it requires strong analysis and mandatory engineer review."
+}
+```
+
+### Why This Matters
+
+The system does not blindly trust an ML prediction.
+
+```text
+High severity
+or
+Low model confidence
+        ↓
+Escalate to stronger analysis and require an engineer
+```
+
+This reduces the risk of an uncertain model making an unsafe operational decision.
