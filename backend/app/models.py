@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Float, String, Text
 from sqlalchemy import Uuid as SQLAlchemyUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +31,42 @@ class Incident(Base):
         String(50),
         default="manual",
     )
+    predicted_category: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    predicted_severity: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    category_confidence: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    severity_confidence: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    triage_route: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    model_tier: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    human_review_required: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+    triage_reason: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    triaged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -40,6 +76,7 @@ class Incident(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
 
 class ChangeEvent(Base):
     __tablename__ = "change_events"

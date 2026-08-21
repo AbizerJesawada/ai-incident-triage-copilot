@@ -22,6 +22,8 @@ from app.ml_classifier import (
     predict_incident,
 )
 from app.escalation_router import route_incident
+from app.triage_service import triage_incident
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -51,7 +53,32 @@ def create_incident(
     incident_data: IncidentCreate,
     db: Session = Depends(get_db),
 ) -> Incident:
-    incident = Incident(**incident_data.model_dump())
+    try:
+        triage = triage_incident(
+            title=incident_data.title,
+            description=incident_data.description,
+            service_name=incident_data.service_name,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+
+    incident = Incident(
+        **incident_data.model_dump(),
+        predicted_category=str(triage["predicted_category"]),
+        predicted_severity=str(triage["predicted_severity"]),
+        category_confidence=float(triage["category_confidence"]),
+        severity_confidence=float(triage["severity_confidence"]),
+        triage_route=str(triage["route"]),
+        model_tier=str(triage["model_tier"]),
+        human_review_required=bool(
+            triage["human_review_required"],
+        ),
+        triage_reason=str(triage["reason"]),
+        triaged_at=triage["triaged_at"],
+    )
 
     db.add(incident)
     db.commit()
@@ -257,3 +284,56 @@ def route_new_incident(
         **prediction,
         **routing,
     }
+
+@app.post(
+    "/incidents/{incident_id}/triage",
+    response_model=IncidentResponse,
+)
+def retriage_incident(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> Incident:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    try:
+        triage = triage_incident(
+            title=incident.title,
+            description=incident.description,
+            service_name=incident.service_name,
+        )
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+
+    incident.predicted_category = str(
+        triage["predicted_category"],
+    )
+    incident.predicted_severity = str(
+        triage["predicted_severity"],
+    )
+    incident.category_confidence = float(
+        triage["category_confidence"],
+    )
+    incident.severity_confidence = float(
+        triage["severity_confidence"],
+    )
+    incident.triage_route = str(triage["route"])
+    incident.model_tier = str(triage["model_tier"])
+    incident.human_review_required = bool(
+        triage["human_review_required"],
+    )
+    incident.triage_reason = str(triage["reason"])
+    incident.triaged_at = triage["triaged_at"]
+
+    db.commit()
+    db.refresh(incident)
+
+    return incident

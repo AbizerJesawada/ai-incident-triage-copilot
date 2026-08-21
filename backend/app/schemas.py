@@ -44,6 +44,15 @@ class IncidentResponse(BaseModel):
     severity: Severity
     status: IncidentStatus
     source: str
+    predicted_category: str | None
+    predicted_severity: Severity | None
+    category_confidence: float | None
+    severity_confidence: float | None
+    triage_route: str | None
+    model_tier: str | None
+    human_review_required: bool
+    triage_reason: str | None
+    triaged_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
