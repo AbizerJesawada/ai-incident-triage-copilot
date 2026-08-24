@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
-from app.models import ChangeEvent, Incident
+from app.models import ChangeEvent, Incident, IncidentReview
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
@@ -15,6 +15,8 @@ from app.schemas import (
     IncidentResponse,
     IncidentUpdate,
     IncidentRoutingResponse,
+    IncidentReviewCreate,
+    IncidentReviewResponse,
 )
 from app.services import find_related_change_events
 from app.ml_classifier import (
@@ -337,3 +339,73 @@ def retriage_incident(
     db.refresh(incident)
 
     return incident
+
+@app.post(
+    "/incidents/{incident_id}/reviews",
+    response_model=IncidentReviewResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_incident_review(
+    incident_id: UUID,
+    review_data: IncidentReviewCreate,
+    db: Session = Depends(get_db),
+) -> IncidentReview:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    review = IncidentReview(
+        incident_id=incident_id,
+        **review_data.model_dump(),
+    )
+
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+
+    return review
+
+
+@app.get(
+    "/incidents/{incident_id}/reviews",
+    response_model=list[IncidentReviewResponse],
+)
+def list_incident_reviews(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[IncidentReview]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    statement = (
+        select(IncidentReview)
+        .where(IncidentReview.incident_id == incident_id)
+        .order_by(IncidentReview.created_at.desc())
+    )
+
+    return list(db.scalars(statement).all())
+
+@app.get(
+    "/review-queue",
+    response_model=list[IncidentResponse],
+)
+def list_review_queue(
+    db: Session = Depends(get_db),
+) -> list[Incident]:
+    statement = (
+        select(Incident)
+        .where(Incident.human_review_required.is_(True))
+        .where(Incident.status != "resolved")
+        .order_by(Incident.created_at.desc())
+    )
+
+    return list(db.scalars(statement).all())

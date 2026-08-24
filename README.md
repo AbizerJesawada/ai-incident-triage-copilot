@@ -695,3 +695,124 @@ Escalate to stronger analysis and require an engineer
 ```
 
 This reduces the risk of an uncertain model making an unsafe operational decision.
+
+Add this complete Day 6 section to `README.md` before `## Next Steps`:
+
+````md
+## Day 6: Persistent Automated Incident Triage
+
+Day 6 connects incident creation, ML classification, confidence-based routing, and PostgreSQL storage into one workflow.
+
+### Automated Triage Flow
+
+```text
+User or monitoring system reports an incident
+        ↓
+Backend saves the incident details
+        ↓
+ML model predicts category, severity, and confidence
+        ↓
+Escalation router selects a safe workflow
+        ↓
+Backend saves all triage results with the same incident
+        ↓
+Frontend and engineers can view the saved result later
+```
+
+### Stored Triage Fields
+
+Each incident now stores these ML and routing results:
+
+| Field | Meaning |
+|---|---|
+| `predicted_category` | ML prediction such as `database` or `network` |
+| `predicted_severity` | ML prediction such as `high` or `critical` |
+| `category_confidence` | Category prediction confidence |
+| `severity_confidence` | Severity prediction confidence |
+| `triage_route` | Recommended workflow, such as `critical_escalation` |
+| `model_tier` | Recommended model tier: `standard` or `strong` |
+| `human_review_required` | Whether an engineer must review the incident |
+| `triage_reason` | Explanation for the routing decision |
+| `triaged_at` | Time when automated triage last ran |
+
+The original incident severity and the ML-predicted severity are separate:
+
+```text
+severity
+→ initial value from the user, alert, or monitoring system
+
+predicted_severity
+→ value predicted by the ML model
+```
+
+### Database Migration
+
+The existing `incidents` table was extended using:
+
+```text
+backend/migrations/001_add_incident_triage_fields.sql
+```
+
+The migration adds the triage columns without deleting existing incident data.
+
+Run the migration locally:
+
+```bash
+docker compose exec -T postgres psql \
+  -U incident_user \
+  -d incident_copilot \
+  < backend/migrations/001_add_incident_triage_fields.sql
+```
+
+### Updated Incident Creation
+
+```text
+POST /incidents
+```
+
+Creating an incident now automatically runs ML prediction and routing before saving the completed triage result.
+
+Example response fields:
+
+```json
+{
+  "predicted_category": "database",
+  "predicted_severity": "critical",
+  "category_confidence": 0.3228,
+  "severity_confidence": 0.3322,
+  "triage_route": "critical_escalation",
+  "model_tier": "strong",
+  "human_review_required": true
+}
+```
+
+### Re-Triage Existing Incidents
+
+```text
+POST /incidents/{incident_id}/triage
+```
+
+This endpoint:
+
+1. Finds one existing incident by ID.
+2. Reads its saved title, description, and service name.
+3. Runs the latest ML classification and routing pipeline again.
+4. Updates triage fields in the same incident row.
+5. Does not create a duplicate incident.
+
+Use this after retraining the ML model or changing routing rules.
+
+### Day 6 Verification
+
+Day 6 was verified through FastAPI Swagger:
+
+```text
+http://localhost:8000/docs
+```
+
+Verified behavior:
+
+- Creating a new incident automatically saves ML and routing results.
+- Re-triaging updates the same incident instead of creating another record.
+- Saved triage results remain available after Docker containers restart.
+````

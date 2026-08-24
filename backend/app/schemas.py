@@ -24,6 +24,11 @@ ChangeEventType = Literal[
     "configuration_change",
     "feature_flag",
 ]
+ReviewDecision = Literal[
+    "approved",
+    "needs_investigation",
+    "rejected",
+]
 
 
 class IncidentCreate(BaseModel):
@@ -104,3 +109,22 @@ class IncidentRoutingResponse(BaseModel):
     model_tier: str
     human_review_required: bool
     reason: str
+
+class IncidentReviewCreate(BaseModel):
+    reviewer_name: str = Field(min_length=2, max_length=100)
+    decision: ReviewDecision
+    review_note: str | None = Field(
+        default=None,
+        max_length=2000,
+    )
+
+
+class IncidentReviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    incident_id: UUID
+    reviewer_name: str
+    decision: ReviewDecision
+    review_note: str | None
+    created_at: datetime
