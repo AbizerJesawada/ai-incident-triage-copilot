@@ -13,6 +13,13 @@ Severity = Literal[
     "critical",
 ]
 
+IncidentCategory = Literal[
+    "application_error",
+    "authentication",
+    "database",
+    "network",
+]
+
 IncidentStatus = Literal[
     "open",
     "investigating",
@@ -24,6 +31,7 @@ ChangeEventType = Literal[
     "configuration_change",
     "feature_flag",
 ]
+
 ReviewDecision = Literal[
     "approved",
     "needs_investigation",
@@ -88,6 +96,7 @@ class ChangeEventResponse(BaseModel):
     reference_id: str | None
     occurred_at: datetime
 
+
 class IncidentClassificationRequest(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=3)
@@ -100,6 +109,7 @@ class IncidentClassificationResponse(BaseModel):
     category_confidence: float
     severity_confidence: float
 
+
 class IncidentRoutingResponse(BaseModel):
     predicted_category: str
     predicted_severity: Severity
@@ -110,6 +120,7 @@ class IncidentRoutingResponse(BaseModel):
     human_review_required: bool
     reason: str
 
+
 class IncidentReviewCreate(BaseModel):
     reviewer_name: str = Field(min_length=2, max_length=100)
     decision: ReviewDecision
@@ -117,6 +128,8 @@ class IncidentReviewCreate(BaseModel):
         default=None,
         max_length=2000,
     )
+    actual_category: IncidentCategory | None = None
+    actual_severity: Severity | None = None
 
 
 class IncidentReviewResponse(BaseModel):
@@ -127,4 +140,17 @@ class IncidentReviewResponse(BaseModel):
     reviewer_name: str
     decision: ReviewDecision
     review_note: str | None
+    actual_category: IncidentCategory | None
+    actual_severity: Severity | None
     created_at: datetime
+
+class FeedbackTrainingExample(BaseModel):
+    incident_id: UUID
+    review_id: UUID
+    title: str
+    description: str
+    service_name: str
+    category: IncidentCategory
+    severity: Severity
+    reviewer_name: str
+    reviewed_at: datetime

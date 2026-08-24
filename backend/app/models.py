@@ -98,6 +98,7 @@ class ChangeEvent(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+
 class IncidentReview(Base):
     __tablename__ = "incident_reviews"
 
@@ -114,6 +115,14 @@ class IncidentReview(Base):
     decision: Mapped[str] = mapped_column(String(30))
     review_note: Mapped[str | None] = mapped_column(
         Text,
+        nullable=True,
+    )
+    actual_category: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    actual_severity: Mapped[str | None] = mapped_column(
+        String(20),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(

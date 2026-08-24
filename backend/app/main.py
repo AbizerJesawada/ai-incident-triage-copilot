@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
 from uuid import UUID
+
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
+from app.escalation_router import route_incident
+from app.ml_classifier import get_model_metadata, predict_incident
 from app.models import ChangeEvent, Incident, IncidentReview
 from app.schemas import (
     ChangeEventCreate,
@@ -13,18 +16,15 @@ from app.schemas import (
     IncidentClassificationResponse,
     IncidentCreate,
     IncidentResponse,
-    IncidentUpdate,
-    IncidentRoutingResponse,
     IncidentReviewCreate,
     IncidentReviewResponse,
+    IncidentRoutingResponse,
+    IncidentUpdate,
+    FeedbackTrainingExample,
 )
 from app.services import find_related_change_events
-from app.ml_classifier import (
-    get_model_metadata,
-    predict_incident,
-)
-from app.escalation_router import route_incident
 from app.triage_service import triage_incident
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -88,6 +88,7 @@ def create_incident(
 
     return incident
 
+
 @app.get(
     "/incidents",
     response_model=list[IncidentResponse],
@@ -121,6 +122,7 @@ def list_incidents(
 
     return list(db.scalars(statement).all())
 
+
 @app.get(
     "/incidents/{incident_id}",
     response_model=IncidentResponse,
@@ -138,6 +140,7 @@ def get_incident(
         )
 
     return incident
+
 
 @app.patch(
     "/incidents/{incident_id}",
@@ -166,6 +169,7 @@ def update_incident(
 
     return incident
 
+
 @app.post(
     "/change-events",
     response_model=ChangeEventResponse,
@@ -175,13 +179,16 @@ def create_change_event(
     event_data: ChangeEventCreate,
     db: Session = Depends(get_db),
 ) -> ChangeEvent:
-    event = ChangeEvent(**event_data.model_dump(exclude_none=True))
+    event = ChangeEvent(
+        **event_data.model_dump(exclude_none=True),
+    )
 
     db.add(event)
     db.commit()
     db.refresh(event)
 
     return event
+
 
 @app.get(
     "/change-events",
@@ -211,6 +218,7 @@ def list_change_events(
 
     return list(db.scalars(statement).all())
 
+
 @app.get(
     "/incidents/{incident_id}/related-change-events",
     response_model=list[ChangeEventResponse],
@@ -234,6 +242,7 @@ def get_related_change_events(
 
     return events
 
+
 @app.post(
     "/ml/classify-incident",
     response_model=IncidentClassificationResponse,
@@ -247,6 +256,7 @@ def classify_incident(
         service_name=incident_data.service_name,
     )
 
+
 @app.get("/ml/model-metadata")
 def get_incident_classifier_metadata() -> dict:
     try:
@@ -256,6 +266,7 @@ def get_incident_classifier_metadata() -> dict:
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error),
         ) from error
+
 
 @app.post(
     "/ml/route-incident",
@@ -286,6 +297,7 @@ def route_new_incident(
         **prediction,
         **routing,
     }
+
 
 @app.post(
     "/incidents/{incident_id}/triage",
@@ -339,6 +351,7 @@ def retriage_incident(
     db.refresh(incident)
 
     return incident
+
 
 @app.post(
     "/incidents/{incident_id}/reviews",
@@ -394,6 +407,7 @@ def list_incident_reviews(
 
     return list(db.scalars(statement).all())
 
+
 @app.get(
     "/review-queue",
     response_model=list[IncidentResponse],
@@ -409,3 +423,38 @@ def list_review_queue(
     )
 
     return list(db.scalars(statement).all())
+
+@app.get(
+    "/ml/feedback-training-examples",
+    response_model=list[FeedbackTrainingExample],
+)
+def list_feedback_training_examples(
+    db: Session = Depends(get_db),
+) -> list[dict[str, object]]:
+    statement = (
+        select(IncidentReview, Incident)
+        .join(
+            Incident,
+            IncidentReview.incident_id == Incident.id,
+        )
+        .where(IncidentReview.actual_category.is_not(None))
+        .where(IncidentReview.actual_severity.is_not(None))
+        .order_by(IncidentReview.created_at.desc())
+    )
+
+    rows = db.execute(statement).all()
+
+    return [
+        {
+            "incident_id": incident.id,
+            "review_id": review.id,
+            "title": incident.title,
+            "description": incident.description,
+            "service_name": incident.service_name,
+            "category": review.actual_category,
+            "severity": review.actual_severity,
+            "reviewer_name": review.reviewer_name,
+            "reviewed_at": review.created_at,
+        }
+        for review, incident in rows
+    ]
