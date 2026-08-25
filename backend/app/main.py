@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, get_db
 from app.escalation_router import route_incident
 from app.ml_classifier import get_model_metadata, predict_incident
-from app.models import ChangeEvent, Incident, IncidentReview
+from app.models import (ChangeEvent, Incident, IncidentReview, IncidentChangeCorrelation,)
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
@@ -21,10 +21,16 @@ from app.schemas import (
     IncidentRoutingResponse,
     IncidentUpdate,
     FeedbackTrainingExample,
+    IncidentChangeCorrelationResponse,
+    IncidentCorrelationTimelineItem,
+    RootCauseHypothesisResponse,
+)
+from app.correlation_service import (
+    refresh_incident_change_correlations,
+    build_root_cause_hypothesis,
 )
 from app.services import find_related_change_events
 from app.triage_service import triage_incident
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -83,6 +89,14 @@ def create_incident(
     )
 
     db.add(incident)
+    db.commit()
+    db.refresh(incident)
+
+    refresh_incident_change_correlations(
+        db=db,
+        incident=incident,
+    )
+
     db.commit()
     db.refresh(incident)
 
@@ -347,6 +361,16 @@ def retriage_incident(
     incident.triage_reason = str(triage["reason"])
     incident.triaged_at = triage["triaged_at"]
 
+    incident.triaged_at = triage["triaged_at"]
+
+    db.commit()
+    db.refresh(incident)
+
+    refresh_incident_change_correlations(
+        db=db,
+        incident=incident,
+    )
+
     db.commit()
     db.refresh(incident)
 
@@ -458,3 +482,185 @@ def list_feedback_training_examples(
         }
         for review, incident in rows
     ]
+
+@app.post(
+    "/incidents/{incident_id}/correlations/refresh",
+    response_model=list[IncidentChangeCorrelationResponse],
+)
+def refresh_incident_correlations(
+    incident_id: UUID,
+    window_minutes: int = Query(default=30, ge=1, le=240),
+    db: Session = Depends(get_db),
+) -> list[IncidentChangeCorrelation]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    correlations = refresh_incident_change_correlations(
+        db=db,
+        incident=incident,
+        window_minutes=window_minutes,
+    )
+
+    db.commit()
+
+    return correlations
+
+@app.get(
+    "/incidents/{incident_id}/correlations",
+    response_model=list[IncidentChangeCorrelationResponse],
+)
+def list_incident_correlations(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[IncidentChangeCorrelation]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    statement = (
+        select(IncidentChangeCorrelation)
+        .where(
+            IncidentChangeCorrelation.incident_id == incident_id
+        )
+        .order_by(
+            IncidentChangeCorrelation.correlation_score.desc()
+        )
+    )
+
+    return list(db.scalars(statement).all())
+
+@app.get(
+    "/incidents/{incident_id}/correlation-timeline",
+    response_model=list[IncidentCorrelationTimelineItem],
+)
+def get_incident_correlation_timeline(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[dict[str, object]]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    statement = (
+        select(IncidentChangeCorrelation, ChangeEvent)
+        .join(
+            ChangeEvent,
+            IncidentChangeCorrelation.change_event_id
+            == ChangeEvent.id,
+        )
+        .where(
+            IncidentChangeCorrelation.incident_id == incident_id
+        )
+        .order_by(
+            IncidentChangeCorrelation.correlation_score.desc(),
+            ChangeEvent.occurred_at.desc(),
+        )
+    )
+
+    rows = db.execute(statement).all()
+
+    return [
+        {
+            "correlation_id": correlation.id,
+            "change_event_id": change_event.id,
+            "event_type": change_event.event_type,
+            "reference_id": change_event.reference_id,
+            "description": change_event.description,
+            "occurred_at": change_event.occurred_at,
+            "time_difference_minutes": (
+                correlation.time_difference_minutes
+            ),
+            "correlation_score": correlation.correlation_score,
+            "correlation_reason": correlation.correlation_reason,
+        }
+        for correlation, change_event in rows
+    ]
+
+@app.get(
+    "/incidents/{incident_id}/root-cause-hypothesis",
+    response_model=RootCauseHypothesisResponse,
+)
+def get_root_cause_hypothesis(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    statement = (
+        select(IncidentChangeCorrelation)
+        .where(
+            IncidentChangeCorrelation.incident_id == incident_id
+        )
+        .order_by(
+            IncidentChangeCorrelation.correlation_score.desc()
+        )
+    )
+
+    correlations = list(db.scalars(statement).all())
+
+    change_event_ids = [
+        correlation.change_event_id
+        for correlation in correlations
+    ]
+
+    change_events_by_id = {}
+
+    if change_event_ids:
+        change_events = db.scalars(
+            select(ChangeEvent).where(
+                ChangeEvent.id.in_(change_event_ids)
+            )
+        ).all()
+
+        change_events_by_id = {
+            change_event.id: change_event
+            for change_event in change_events
+        }
+
+    root_cause_correlations = [
+        correlation
+        for correlation in correlations
+        if change_events_by_id[
+            correlation.change_event_id
+        ].occurred_at <= incident.created_at
+    ]
+
+    hypothesis = build_root_cause_hypothesis(
+        incident=incident,
+        correlations=root_cause_correlations,
+        change_events_by_id=change_events_by_id,
+    )
+
+    strongest_score = (
+        max(
+            root_cause_correlations,
+            key=lambda correlation: correlation.correlation_score,
+        ).correlation_score
+        if root_cause_correlations
+        else None
+    )
+
+    return {
+        "incident_id": incident.id,
+        "hypothesis": hypothesis,
+        "strongest_correlation_score": strongest_score,
+    }

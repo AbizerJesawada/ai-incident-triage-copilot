@@ -204,3 +204,25 @@ Each review records the reviewer, decision, note, and timestamp for audit histor
 5. Add cited LLM recommendations and approval controls.
 6. Build the Next.js frontend and notification workflow.
 ````
+
+## MLOps Feedback and Model Promotion
+
+The system keeps risky or low-confidence incidents in an engineer review workflow.
+
+1. An engineer can save confirmed labels using `actual_category` and `actual_severity`.
+2. Confirmed reviews are exported from PostgreSQL into a feedback CSV.
+3. New models are trained as candidates, not activated automatically.
+4. Candidate metrics are reviewed before promotion.
+5. An approved candidate is manually promoted to the active API model.
+
+This prevents an untested or weaker model from replacing the current active model.
+
+## Temporal Correlation
+
+When an incident is created or re-triaged, the system checks recent change events for the same service.
+
+- Changes within 30 minutes are saved as correlation evidence.
+- Deployments close to an incident receive higher scores.
+- The correlation timeline shows changes before and after an incident.
+- Root-cause hypotheses use only changes that occurred before the incident.
+- A hypothesis is a lead for investigation, not confirmed root cause.

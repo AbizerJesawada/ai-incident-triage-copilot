@@ -98,6 +98,29 @@ class ChangeEvent(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+class IncidentChangeCorrelation(Base):
+    __tablename__ = "incident_change_correlations"
+
+    id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    incident_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("incidents.id"),
+    )
+    change_event_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("change_events.id"),
+    )
+    time_difference_minutes: Mapped[float] = mapped_column(Float)
+    correlation_score: Mapped[float] = mapped_column(Float)
+    correlation_reason: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
 
 class IncidentReview(Base):
     __tablename__ = "incident_reviews"

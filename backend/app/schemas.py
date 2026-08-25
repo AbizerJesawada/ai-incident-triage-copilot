@@ -154,3 +154,30 @@ class FeedbackTrainingExample(BaseModel):
     severity: Severity
     reviewer_name: str
     reviewed_at: datetime
+
+class IncidentChangeCorrelationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    incident_id: UUID
+    change_event_id: UUID
+    time_difference_minutes: float
+    correlation_score: float
+    correlation_reason: str
+    created_at: datetime
+
+class IncidentCorrelationTimelineItem(BaseModel):
+    correlation_id: UUID
+    change_event_id: UUID
+    event_type: ChangeEventType
+    reference_id: str | None
+    description: str
+    occurred_at: datetime
+    time_difference_minutes: float
+    correlation_score: float
+    correlation_reason: str
+
+class RootCauseHypothesisResponse(BaseModel):
+    incident_id: UUID
+    hypothesis: str
+    strongest_correlation_score: float | None
