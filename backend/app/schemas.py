@@ -38,6 +38,11 @@ ReviewDecision = Literal[
     "rejected",
 ]
 
+RecommendationStatus = Literal[
+    "pending",
+    "approved",
+    "rejected",
+]
 
 class IncidentCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
@@ -181,3 +186,27 @@ class RootCauseHypothesisResponse(BaseModel):
     incident_id: UUID
     hypothesis: str
     strongest_correlation_score: float | None
+
+class RemediationRecommendationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    incident_id: UUID
+    recommendation: str
+    evidence: str
+    source_type: str
+    source_id: UUID | None
+    status: RecommendationStatus
+    reviewer_name: str | None
+    review_note: str | None
+    created_at: datetime
+    reviewed_at: datetime | None
+
+
+class RemediationRecommendationReview(BaseModel):
+    status: Literal["approved", "rejected"]
+    reviewer_name: str = Field(min_length=2, max_length=100)
+    review_note: str | None = Field(
+        default=None,
+        max_length=2000,
+    )

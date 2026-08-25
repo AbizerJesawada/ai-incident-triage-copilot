@@ -122,6 +122,46 @@ class IncidentChangeCorrelation(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+class RemediationRecommendation(Base):
+    __tablename__ = "remediation_recommendations"
+
+    id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    incident_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("incidents.id"),
+    )
+    recommendation: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[str] = mapped_column(Text)
+    source_type: Mapped[str] = mapped_column(String(50))
+    source_id: Mapped[UUID | None] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(30),
+        default="pending",
+    )
+    reviewer_name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    review_note: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
 class IncidentReview(Base):
     __tablename__ = "incident_reviews"
 

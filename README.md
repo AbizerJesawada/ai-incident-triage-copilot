@@ -226,3 +226,13 @@ When an incident is created or re-triaged, the system checks recent change event
 - The correlation timeline shows changes before and after an incident.
 - Root-cause hypotheses use only changes that occurred before the incident.
 - A hypothesis is a lead for investigation, not confirmed root cause.
+
+## Grounded Remediation Recommendations
+
+The system generates remediation recommendations only from strong, pre-incident correlation evidence.
+
+- Each recommendation includes the supporting evidence and source change event.
+- New recommendations start with `pending` status.
+- An engineer can approve or reject a pending recommendation.
+- Approved recommendations are recorded with reviewer details and time.
+- The system never runs a rollback or remediation action automatically.

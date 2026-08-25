@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from uuid import UUID
-
+from datetime import datetime, timezone
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, get_db
 from app.escalation_router import route_incident
 from app.ml_classifier import get_model_metadata, predict_incident
-from app.models import (ChangeEvent, Incident, IncidentReview, IncidentChangeCorrelation,)
+from app.models import (ChangeEvent, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,)
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
@@ -24,6 +24,8 @@ from app.schemas import (
     IncidentChangeCorrelationResponse,
     IncidentCorrelationTimelineItem,
     RootCauseHypothesisResponse,
+    RemediationRecommendationResponse,
+    RemediationRecommendationReview,
 )
 from app.correlation_service import (
     refresh_incident_change_correlations,
@@ -31,6 +33,9 @@ from app.correlation_service import (
 )
 from app.services import find_related_change_events
 from app.triage_service import triage_incident
+from app.remediation_service import (
+    generate_remediation_recommendations,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -664,3 +669,162 @@ def get_root_cause_hypothesis(
         "hypothesis": hypothesis,
         "strongest_correlation_score": strongest_score,
     }
+
+@app.post(
+    "/incidents/{incident_id}/recommendations/generate",
+    response_model=list[RemediationRecommendationResponse],
+)
+def generate_incident_recommendations(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[RemediationRecommendation]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    correlations = list(
+        db.scalars(
+            select(IncidentChangeCorrelation).where(
+                IncidentChangeCorrelation.incident_id
+                == incident_id
+            )
+        ).all()
+    )
+
+    change_event_ids = [
+        correlation.change_event_id
+        for correlation in correlations
+    ]
+
+    change_events_by_id = {}
+
+    if change_event_ids:
+        change_events = db.scalars(
+            select(ChangeEvent).where(
+                ChangeEvent.id.in_(change_event_ids)
+            )
+        ).all()
+
+        change_events_by_id = {
+            change_event.id: change_event
+            for change_event in change_events
+        }
+
+    recommendation_data = (
+        generate_remediation_recommendations(
+            incident=incident,
+            correlations=correlations,
+            change_events_by_id=change_events_by_id,
+        )
+    )
+
+    source_ids = [
+        item["source_id"]
+        for item in recommendation_data
+        if item["source_id"] is not None
+    ]
+
+    existing_source_ids = set()
+
+    if source_ids:
+        existing_source_ids = set(
+            db.scalars(
+                select(RemediationRecommendation.source_id).where(
+                    RemediationRecommendation.incident_id
+                    == incident_id,
+                    RemediationRecommendation.source_id.in_(
+                        source_ids
+                    ),
+                )
+            ).all()
+        )
+
+    new_recommendations = []
+
+    for item in recommendation_data:
+        if item["source_id"] in existing_source_ids:
+            continue
+
+        recommendation = RemediationRecommendation(
+            incident_id=incident_id,
+            recommendation=str(item["recommendation"]),
+            evidence=str(item["evidence"]),
+            source_type=str(item["source_type"]),
+            source_id=item["source_id"],
+        )
+
+        db.add(recommendation)
+        new_recommendations.append(recommendation)
+
+    db.commit()
+
+    for recommendation in new_recommendations:
+        db.refresh(recommendation)
+
+    return new_recommendations
+
+@app.get(
+    "/incidents/{incident_id}/recommendations",
+    response_model=list[RemediationRecommendationResponse],
+)
+def list_incident_recommendations(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[RemediationRecommendation]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    statement = (
+        select(RemediationRecommendation)
+        .where(
+            RemediationRecommendation.incident_id == incident_id
+        )
+        .order_by(RemediationRecommendation.created_at.desc())
+    )
+
+    return list(db.scalars(statement).all())
+
+@app.patch(
+    "/recommendations/{recommendation_id}/review",
+    response_model=RemediationRecommendationResponse,
+)
+def review_remediation_recommendation(
+    recommendation_id: UUID,
+    review_data: RemediationRecommendationReview,
+    db: Session = Depends(get_db),
+) -> RemediationRecommendation:
+    recommendation = db.get(
+        RemediationRecommendation,
+        recommendation_id,
+    )
+
+    if recommendation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recommendation not found.",
+        )
+
+    if recommendation.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only pending recommendations can be reviewed.",
+        )
+
+    recommendation.status = review_data.status
+    recommendation.reviewer_name = review_data.reviewer_name
+    recommendation.review_note = review_data.review_note
+    recommendation.reviewed_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(recommendation)
+
+    return recommendation
