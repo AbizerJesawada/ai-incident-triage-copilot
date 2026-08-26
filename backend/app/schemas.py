@@ -44,6 +44,11 @@ RecommendationStatus = Literal[
     "rejected",
 ]
 
+LLMGenerationStatus = Literal[
+    "success",
+    "error",
+]
+
 class IncidentCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=3)
@@ -227,3 +232,27 @@ class IncidentBriefingResponse(BaseModel):
     evidence_sources: list[BriefingEvidenceSource]
     evidence_validation: BriefingEvidenceValidation
     grounding_status: Literal["verified", "unverified"]
+
+class LLMGenerationLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    incident_id: UUID
+    model_name: str
+    grounding_status: str | None
+    status: LLMGenerationStatus
+    latency_ms: float
+    prompt_token_count: int | None
+    response_token_count: int | None
+    error_message: str | None
+    created_at: datetime
+
+
+class LLMGenerationSummaryResponse(BaseModel):
+    total_calls: int
+    successful_calls: int
+    failed_calls: int
+    verified_briefings: int
+    average_latency_ms: float | None
+    total_prompt_tokens: int
+    total_response_tokens: int

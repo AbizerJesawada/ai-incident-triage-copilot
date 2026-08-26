@@ -162,6 +162,40 @@ class RemediationRecommendation(Base):
         nullable=True,
     )
 
+class LLMGenerationLog(Base):
+    __tablename__ = "llm_generation_logs"
+
+    id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    incident_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("incidents.id"),
+    )
+    model_name: Mapped[str] = mapped_column(String(100))
+    grounding_status: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(String(30))
+    latency_ms: Mapped[float] = mapped_column(Float)
+    prompt_token_count: Mapped[int | None] = mapped_column(
+        nullable=True,
+    )
+    response_token_count: Mapped[int | None] = mapped_column(
+        nullable=True,
+    )
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
 class IncidentReview(Base):
     __tablename__ = "incident_reviews"
 

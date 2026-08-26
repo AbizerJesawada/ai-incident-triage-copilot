@@ -2,13 +2,13 @@ from contextlib import asynccontextmanager
 from uuid import UUID
 from datetime import datetime, timezone
 from fastapi import Depends, FastAPI, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-
+from time import perf_counter
 from app.database import Base, engine, get_db
 from app.escalation_router import route_incident
 from app.ml_classifier import get_model_metadata, predict_incident
-from app.models import (ChangeEvent, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,)
+from app.models import (ChangeEvent, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,LLMGenerationLog,)
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
@@ -27,6 +27,8 @@ from app.schemas import (
     RemediationRecommendationResponse,
     RemediationRecommendationReview,
     IncidentBriefingResponse,
+    LLMGenerationLogResponse,
+    LLMGenerationSummaryResponse,
 )
 from app.correlation_service import (
     refresh_incident_change_correlations,
@@ -951,15 +953,40 @@ def get_incident_briefing(
         ]
     )
 
+    started_at = perf_counter()
+
     try:
-        briefing = generate_incident_briefing(
+        llm_result = generate_incident_briefing(
             incident_context=incident_context,
         )
     except Exception as error:
+        latency_ms = round(
+            (perf_counter() - started_at) * 1000,
+            2,
+        )
+
+        failed_log = LLMGenerationLog(
+            incident_id=incident.id,
+            model_name="unknown",
+            status="error",
+            latency_ms=latency_ms,
+            error_message=str(error),
+        )
+
+        db.add(failed_log)
+        db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Could not generate incident briefing: {error}",
         ) from error
+
+    latency_ms = round(
+        (perf_counter() - started_at) * 1000,
+        2,
+    )
+
+    briefing = str(llm_result["briefing"])
 
     allowed_reference_ids = [
         str(source["reference_id"])
@@ -978,10 +1005,112 @@ def get_incident_briefing(
         else "unverified"
     )
 
+    success_log = LLMGenerationLog(
+        incident_id=incident.id,
+        model_name=str(llm_result["model_name"]),
+        grounding_status=grounding_status,
+        status="success",
+        latency_ms=latency_ms,
+        prompt_token_count=llm_result["prompt_token_count"],
+        response_token_count=llm_result["response_token_count"],
+    )
+
+    db.add(success_log)
+    db.commit()
+
     return {
         "incident_id": incident.id,
         "briefing": briefing,
         "evidence_sources": evidence_sources,
         "evidence_validation": evidence_validation,
         "grounding_status": grounding_status,
+    }
+
+@app.get(
+    "/incidents/{incident_id}/llm-generation-logs",
+    response_model=list[LLMGenerationLogResponse],
+)
+def list_incident_llm_generation_logs(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[LLMGenerationLog]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    statement = (
+        select(LLMGenerationLog)
+        .where(LLMGenerationLog.incident_id == incident_id)
+        .order_by(LLMGenerationLog.created_at.desc())
+    )
+
+    return list(db.scalars(statement).all())
+
+@app.get(
+    "/llm-generation-summary",
+    response_model=LLMGenerationSummaryResponse,
+)
+def get_llm_generation_summary(
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    total_calls = db.scalar(
+        select(func.count()).select_from(LLMGenerationLog)
+    ) or 0
+
+    successful_calls = db.scalar(
+        select(func.count())
+        .select_from(LLMGenerationLog)
+        .where(LLMGenerationLog.status == "success")
+    ) or 0
+
+    failed_calls = db.scalar(
+        select(func.count())
+        .select_from(LLMGenerationLog)
+        .where(LLMGenerationLog.status == "error")
+    ) or 0
+
+    verified_briefings = db.scalar(
+        select(func.count())
+        .select_from(LLMGenerationLog)
+        .where(LLMGenerationLog.grounding_status == "verified")
+    ) or 0
+
+    average_latency_ms = db.scalar(
+        select(func.avg(LLMGenerationLog.latency_ms))
+    )
+
+    total_prompt_tokens = db.scalar(
+        select(
+            func.coalesce(
+                func.sum(LLMGenerationLog.prompt_token_count),
+                0,
+            )
+        )
+    ) or 0
+
+    total_response_tokens = db.scalar(
+        select(
+            func.coalesce(
+                func.sum(LLMGenerationLog.response_token_count),
+                0,
+            )
+        )
+    ) or 0
+
+    return {
+        "total_calls": total_calls,
+        "successful_calls": successful_calls,
+        "failed_calls": failed_calls,
+        "verified_briefings": verified_briefings,
+        "average_latency_ms": (
+            round(float(average_latency_ms), 2)
+            if average_latency_ms is not None
+            else None
+        ),
+        "total_prompt_tokens": int(total_prompt_tokens),
+        "total_response_tokens": int(total_response_tokens),
     }

@@ -8,7 +8,7 @@ DEFAULT_MODEL = "gemini-3.5-flash"
 
 def generate_incident_briefing(
     incident_context: str,
-) -> str:
+) -> dict[str, object]:
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
@@ -16,6 +16,7 @@ def generate_incident_briefing(
             "GEMINI_API_KEY is not configured."
         )
 
+    model_name = os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
@@ -36,7 +37,7 @@ Verified incident context:
 """
 
     response = client.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
+        model=model_name,
         contents=prompt,
     )
 
@@ -45,7 +46,22 @@ Verified incident context:
             "Gemini returned an empty incident briefing."
         )
 
-    return response.text.strip()
+    usage_metadata = response.usage_metadata
+
+    return {
+        "briefing": response.text.strip(),
+        "model_name": model_name,
+        "prompt_token_count": getattr(
+            usage_metadata,
+            "prompt_token_count",
+            None,
+        ),
+        "response_token_count": getattr(
+            usage_metadata,
+            "candidates_token_count",
+            None,
+        ),
+    }
 
 def validate_briefing_evidence(
     briefing: str,

@@ -247,3 +247,18 @@ The backend can generate an engineer briefing with Gemini from verified incident
 - A briefing is marked `verified` only when it contains no unsupported evidence IDs.
 - The LLM cannot execute rollbacks or any external remediation action.
 - Engineers remain responsible for confirming the root cause and approving recommendations.
+
+## Day 12: LLM Observability
+
+Each Gemini incident briefing is logged in PostgreSQL.
+
+The log stores:
+- Model name
+- Success or error status
+- Grounding status
+- Response latency
+- Prompt and response token counts
+
+Endpoints:
+- `GET /incidents/{incident_id}/llm-generation-logs`
+- `GET /llm-generation-summary`
