@@ -26,6 +26,7 @@ from app.schemas import (
     RootCauseHypothesisResponse,
     RemediationRecommendationResponse,
     RemediationRecommendationReview,
+    IncidentBriefingResponse,
 )
 from app.correlation_service import (
     refresh_incident_change_correlations,
@@ -35,6 +36,10 @@ from app.services import find_related_change_events
 from app.triage_service import triage_incident
 from app.remediation_service import (
     generate_remediation_recommendations,
+)
+from app.llm_service import (
+    generate_incident_briefing,
+    validate_briefing_evidence,
 )
 
 @asynccontextmanager
@@ -828,3 +833,155 @@ def review_remediation_recommendation(
     db.refresh(recommendation)
 
     return recommendation
+
+@app.get(
+    "/incidents/{incident_id}/briefing",
+    response_model=IncidentBriefingResponse,
+)
+def get_incident_briefing(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    correlation_rows = db.execute(
+        select(IncidentChangeCorrelation, ChangeEvent)
+        .join(
+            ChangeEvent,
+            IncidentChangeCorrelation.change_event_id
+            == ChangeEvent.id,
+        )
+        .where(
+            IncidentChangeCorrelation.incident_id == incident_id
+        )
+        .order_by(
+            IncidentChangeCorrelation.correlation_score.desc()
+        )
+    ).all()
+
+    recommendations = list(
+        db.scalars(
+            select(RemediationRecommendation)
+            .where(
+                RemediationRecommendation.incident_id
+                == incident_id
+            )
+            .order_by(
+                RemediationRecommendation.created_at.desc()
+            )
+        ).all()
+    )
+
+    evidence_sources = []
+    correlation_context = []
+
+    for correlation, change_event in correlation_rows:
+        reference = change_event.reference_id or str(
+            change_event.id
+        )
+        timing = (
+            "before"
+            if change_event.occurred_at <= incident.created_at
+            else "after"
+        )
+
+        evidence_sources.append(
+            {
+                "source_type": "change_event",
+                "source_id": change_event.id,
+                "reference_id": change_event.reference_id,
+                "description": (
+                    f"{change_event.event_type.replace('_', ' ')} "
+                    f"{reference} occurred "
+                    f"{correlation.time_difference_minutes} minutes "
+                    f"{timing} the incident. "
+                    f"Correlation score: "
+                    f"{correlation.correlation_score}."
+                ),
+            }
+        )
+
+        correlation_context.append(
+            f"- {change_event.event_type}: {reference}; "
+            f"{correlation.time_difference_minutes} minutes "
+            f"{timing}; score {correlation.correlation_score}; "
+            f"{correlation.correlation_reason}"
+        )
+
+    recommendation_context = [
+        (
+            f"- Status: {recommendation.status}; "
+            f"Recommendation: {recommendation.recommendation}; "
+            f"Evidence: {recommendation.evidence}"
+        )
+        for recommendation in recommendations
+    ]
+
+    incident_context = "\n".join(
+        [
+            "Incident:",
+            f"- ID: {incident.id}",
+            f"- Title: {incident.title}",
+            f"- Description: {incident.description}",
+            f"- Service: {incident.service_name}",
+            f"- Predicted category: "
+            f"{incident.predicted_category or 'not available'}",
+            f"- Predicted severity: "
+            f"{incident.predicted_severity or 'not available'}",
+            f"- Triage reason: "
+            f"{incident.triage_reason or 'not available'}",
+            "",
+            "Correlation evidence:",
+            *(
+                correlation_context
+                or ["- No saved correlation evidence."]
+            ),
+            "",
+            "Saved recommendations:",
+            *(
+                recommendation_context
+                or ["- No saved recommendations."]
+            ),
+        ]
+    )
+
+    try:
+        briefing = generate_incident_briefing(
+            incident_context=incident_context,
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Could not generate incident briefing: {error}",
+        ) from error
+
+    allowed_reference_ids = [
+        str(source["reference_id"])
+        for source in evidence_sources
+        if source["reference_id"] is not None
+    ]
+
+    evidence_validation = validate_briefing_evidence(
+        briefing=briefing,
+        allowed_reference_ids=allowed_reference_ids,
+    )
+
+    grounding_status = (
+        "verified"
+        if not evidence_validation["unsupported_reference_ids"]
+        else "unverified"
+    )
+
+    return {
+        "incident_id": incident.id,
+        "briefing": briefing,
+        "evidence_sources": evidence_sources,
+        "evidence_validation": evidence_validation,
+        "grounding_status": grounding_status,
+    }

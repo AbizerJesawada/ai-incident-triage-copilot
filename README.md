@@ -236,3 +236,14 @@ The system generates remediation recommendations only from strong, pre-incident 
 - An engineer can approve or reject a pending recommendation.
 - Approved recommendations are recorded with reviewer details and time.
 - The system never runs a rollback or remediation action automatically.
+
+## Grounded LLM Briefings
+
+The backend can generate an engineer briefing with Gemini from verified incident data.
+
+- Gemini receives the incident, saved correlation evidence, and recommendations.
+- The API returns the original evidence sources with the LLM briefing.
+- Deployment IDs mentioned by Gemini are checked against the supplied evidence.
+- A briefing is marked `verified` only when it contains no unsupported evidence IDs.
+- The LLM cannot execute rollbacks or any external remediation action.
+- Engineers remain responsible for confirming the root cause and approving recommendations.

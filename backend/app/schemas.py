@@ -210,3 +210,20 @@ class RemediationRecommendationReview(BaseModel):
         default=None,
         max_length=2000,
     )
+
+class BriefingEvidenceSource(BaseModel):
+    source_type: str
+    source_id: UUID
+    reference_id: str | None
+    description: str
+
+class BriefingEvidenceValidation(BaseModel):
+    mentioned_reference_ids: list[str]
+    unsupported_reference_ids: list[str]
+
+class IncidentBriefingResponse(BaseModel):
+    incident_id: UUID
+    briefing: str
+    evidence_sources: list[BriefingEvidenceSource]
+    evidence_validation: BriefingEvidenceValidation
+    grounding_status: Literal["verified", "unverified"]
