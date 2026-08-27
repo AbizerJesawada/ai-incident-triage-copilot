@@ -8,7 +8,7 @@ from time import perf_counter
 from app.database import Base, engine, get_db
 from app.escalation_router import route_incident
 from app.ml_classifier import get_model_metadata, predict_incident
-from app.models import (ChangeEvent, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,LLMGenerationLog,)
+from app.models import (ChangeEvent, EngineerNotification, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,LLMGenerationLog,)
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
@@ -29,6 +29,7 @@ from app.schemas import (
     IncidentBriefingResponse,
     LLMGenerationLogResponse,
     LLMGenerationSummaryResponse,
+    EngineerNotificationResponse,
 )
 from app.correlation_service import (
     refresh_incident_change_correlations,
@@ -42,6 +43,9 @@ from app.remediation_service import (
 from app.llm_service import (
     generate_incident_briefing,
     validate_briefing_evidence,
+)
+from app.notification_service import (
+    create_review_notification_if_needed,
 )
 
 @asynccontextmanager
@@ -383,6 +387,11 @@ def retriage_incident(
         incident=incident,
     )
 
+    create_review_notification_if_needed(
+        db=db,
+        incident=incident,
+    )
+
     db.commit()
     db.refresh(incident)
 
@@ -412,9 +421,16 @@ def create_incident_review(
         **review_data.model_dump(),
     )
 
-    db.add(review)
+    db.add(incident)
+    db.flush()
+
+    create_review_notification_if_needed(
+        db=db,
+        incident=incident,
+    )
+
     db.commit()
-    db.refresh(review)
+    db.refresh(incident)
 
     return review
 
@@ -1114,3 +1130,54 @@ def get_llm_generation_summary(
         "total_prompt_tokens": int(total_prompt_tokens),
         "total_response_tokens": int(total_response_tokens),
     }
+
+@app.get(
+    "/engineer-notifications",
+    response_model=list[EngineerNotificationResponse],
+)
+def list_engineer_notifications(
+    status_filter: str | None = Query(
+        default=None,
+        alias="status",
+    ),
+    db: Session = Depends(get_db),
+) -> list[EngineerNotification]:
+    statement = select(EngineerNotification)
+
+    if status_filter:
+        statement = statement.where(
+            EngineerNotification.status == status_filter
+        )
+
+    statement = statement.order_by(
+        EngineerNotification.created_at.desc()
+    )
+
+    return list(db.scalars(statement).all())
+
+@app.patch(
+    "/engineer-notifications/{notification_id}/read",
+    response_model=EngineerNotificationResponse,
+)
+def mark_engineer_notification_as_read(
+    notification_id: UUID,
+    db: Session = Depends(get_db),
+) -> EngineerNotification:
+    notification = db.get(
+        EngineerNotification,
+        notification_id,
+    )
+
+    if notification is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found.",
+        )
+
+    notification.status = "read"
+    notification.read_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(notification)
+
+    return notification

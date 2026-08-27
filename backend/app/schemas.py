@@ -49,6 +49,11 @@ LLMGenerationStatus = Literal[
     "error",
 ]
 
+NotificationStatus = Literal[
+    "pending",
+    "read",
+]
+
 class IncidentCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=3)
@@ -256,3 +261,14 @@ class LLMGenerationSummaryResponse(BaseModel):
     average_latency_ms: float | None
     total_prompt_tokens: int
     total_response_tokens: int
+
+class EngineerNotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    incident_id: UUID
+    notification_type: str
+    message: str
+    status: NotificationStatus
+    created_at: datetime
+    read_at: datetime | None

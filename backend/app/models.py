@@ -196,6 +196,35 @@ class LLMGenerationLog(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
+class EngineerNotification(Base):
+    __tablename__ = "engineer_notifications"
+
+    id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    incident_id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        ForeignKey("incidents.id"),
+    )
+    notification_type: Mapped[str] = mapped_column(
+        String(50),
+    )
+    message: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="pending",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    read_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
 class IncidentReview(Base):
     __tablename__ = "incident_reviews"
 

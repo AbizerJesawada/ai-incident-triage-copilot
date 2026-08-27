@@ -262,3 +262,13 @@ The log stores:
 Endpoints:
 - `GET /incidents/{incident_id}/llm-generation-logs`
 - `GET /llm-generation-summary`
+
+## Day 13: Engineer Notifications
+
+When an incident requires human review, the system automatically creates a pending engineer notification.
+
+Endpoints:
+- `GET /engineer-notifications?status=pending`
+- `PATCH /engineer-notifications/{notification_id}/read`
+
+Current notifications are stored inside PostgreSQL. Slack or email delivery will be added later.
