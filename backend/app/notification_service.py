@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import EngineerNotification, Incident
-
+from app.slack_service import send_engineer_review_alert
 
 def create_review_notification_if_needed(
     db: Session,
@@ -35,5 +35,5 @@ def create_review_notification_if_needed(
     )
 
     db.add(notification)
-
+    send_engineer_review_alert(incident)
     return notification

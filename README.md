@@ -272,3 +272,13 @@ Endpoints:
 - `PATCH /engineer-notifications/{notification_id}/read`
 
 Current notifications are stored inside PostgreSQL. Slack or email delivery will be added later.
+
+## Day 14: Slack Alerts
+
+When an incident requires engineer review, the system:
+- Saves a pending notification in PostgreSQL.
+- Sends an alert to the configured Slack channel.
+
+Set `SLACK_WEBHOOK_URL` in `.env`.
+
+Slack delivery is best effort. If Slack is unavailable, the internal PostgreSQL notification remains available.

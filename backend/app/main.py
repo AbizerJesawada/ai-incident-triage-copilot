@@ -93,8 +93,12 @@ def create_incident(
         **incident_data.model_dump(),
         predicted_category=str(triage["predicted_category"]),
         predicted_severity=str(triage["predicted_severity"]),
-        category_confidence=float(triage["category_confidence"]),
-        severity_confidence=float(triage["severity_confidence"]),
+        category_confidence=float(
+            triage["category_confidence"],
+        ),
+        severity_confidence=float(
+            triage["severity_confidence"],
+        ),
         triage_route=str(triage["route"]),
         model_tier=str(triage["model_tier"]),
         human_review_required=bool(
@@ -105,8 +109,12 @@ def create_incident(
     )
 
     db.add(incident)
-    db.commit()
-    db.refresh(incident)
+    db.flush()
+
+    create_review_notification_if_needed(
+        db=db,
+        incident=incident,
+    )
 
     refresh_incident_change_correlations(
         db=db,
