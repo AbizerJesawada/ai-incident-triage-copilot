@@ -1,7 +1,8 @@
+import json
 from contextlib import asynccontextmanager
 from uuid import UUID
 from datetime import datetime, timezone
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from time import perf_counter
@@ -46,6 +47,10 @@ from app.llm_service import (
 )
 from app.notification_service import (
     create_review_notification_if_needed,
+)
+from app.slack_event_service import (
+    acknowledge_eyes_reaction,
+    is_valid_slack_request,
 )
 
 @asynccontextmanager
@@ -1189,3 +1194,41 @@ def mark_engineer_notification_as_read(
     db.refresh(notification)
 
     return notification
+
+@app.post("/slack/events")
+async def receive_slack_events(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    raw_body = await request.body()
+
+    is_valid = is_valid_slack_request(
+        raw_body=raw_body,
+        timestamp=request.headers.get(
+            "X-Slack-Request-Timestamp"
+        ),
+        signature=request.headers.get(
+            "X-Slack-Signature"
+        ),
+    )
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Slack request signature.",
+        )
+
+    payload = json.loads(raw_body)
+
+    if payload.get("type") == "url_verification":
+        return {
+            "challenge": payload["challenge"],
+        }
+
+    if payload.get("type") == "event_callback":
+        acknowledge_eyes_reaction(
+            db=db,
+            event=payload.get("event", {}),
+        )
+
+    return {"ok": True}

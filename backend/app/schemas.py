@@ -272,3 +272,7 @@ class EngineerNotificationResponse(BaseModel):
     status: NotificationStatus
     created_at: datetime
     read_at: datetime | None
+    acknowledged_by: str | None
+    acknowledged_at: datetime | None
+    slack_channel_id: str | None
+    slack_message_ts: str | None

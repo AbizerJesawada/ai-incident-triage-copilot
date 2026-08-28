@@ -224,6 +224,22 @@ class EngineerNotification(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    acknowledged_by: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    acknowledged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    slack_channel_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    slack_message_ts: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
 
 class IncidentReview(Base):
     __tablename__ = "incident_reviews"

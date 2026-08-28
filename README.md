@@ -282,3 +282,14 @@ When an incident requires engineer review, the system:
 Set `SLACK_WEBHOOK_URL` in `.env`.
 
 Slack delivery is best effort. If Slack is unavailable, the internal PostgreSQL notification remains available.
+
+## Day 15: Slack Acknowledgement
+
+Engineers acknowledge a Slack incident alert by reacting with `eyes`.
+
+The backend verifies the Slack event, finds the matching PostgreSQL notification, and saves:
+- Notification status as `read`
+- Slack user ID in `acknowledged_by`
+- Acknowledgement time in `acknowledged_at`
+
+During local development, ngrok provides a temporary public URL so Slack can send reaction events to the local backend.

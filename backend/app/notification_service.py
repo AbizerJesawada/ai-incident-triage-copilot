@@ -35,5 +35,18 @@ def create_review_notification_if_needed(
     )
 
     db.add(notification)
-    send_engineer_review_alert(incident)
+    db.flush()
+
+    slack_message = send_engineer_review_alert(
+        incident
+    )
+
+    if slack_message is not None:
+        notification.slack_channel_id = (
+            slack_message["channel_id"]
+        )
+        notification.slack_message_ts = (
+            slack_message["message_ts"]
+        )
+
     return notification
