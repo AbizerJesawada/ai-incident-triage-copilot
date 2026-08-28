@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+  <title>Incident Triage Dashboard</title>
+  <style>
+    :root {
+      --page: #f4f7f8;
+      --surface: #ffffff;
+      --text: #17212b;
+      --muted: #62717e;
+      --line: #d8e0e5;
+      --blue: #1463a5;
+      --red: #b42318;
+      --orange: #b54708;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      background: #172b3a;
+      color: #ffffff;
+      padding: 20px 32px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    header p {
+      margin: 6px 0 0;
+      color: #c9d5df;
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 32px 48px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .toolbar h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      background: var(--blue);
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px 14px;
+    }
+
+    button:hover {
+      background: #0b4f87;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .metric,
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .metric {
+      min-height: 112px;
+      padding: 18px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .metric-value {
+      display: block;
+      margin-top: 12px;
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .metric-danger {
+      color: var(--red);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+      gap: 20px;
+    }
+
+    .panel-header {
+      border-bottom: 1px solid var(--line);
+      padding: 16px 18px;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .incident-list,
+    .notification-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .incident-item,
+    .notification-item {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .incident-item:last-child,
+    .notification-item:last-child {
+      border-bottom: 0;
+    }
+
+    .incident-button {
+      width: 100%;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      padding: 16px 18px;
+      text-align: left;
+    }
+
+    .incident-button:hover {
+      background: #edf5fa;
+    }
+
+    .incident-title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .incident-meta,
+    .notification-meta,
+    .detail-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .notification-item {
+      padding: 16px 18px;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-right: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 7px;
+    }
+
+    .badge-open {
+      background: #e7f0f8;
+      color: var(--blue);
+    }
+
+    .badge-review {
+      background: #fdecec;
+      color: var(--red);
+    }
+
+    .badge-high {
+      background: #fff1e6;
+      color: var(--orange);
+    }
+
+    #incident-detail-panel {
+      margin-top: 20px;
+    }
+
+    .detail-content {
+      padding: 18px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin: 18px 0;
+    }
+
+    .detail-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .detail-reason {
+      border-left: 3px solid var(--blue);
+      background: #edf5fa;
+      margin-top: 18px;
+      padding: 12px;
+    }
+
+    .empty,
+    .error {
+      padding: 22px 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .error {
+      color: var(--red);
+    }
+
+    @media (max-width: 850px) {
+      main {
+        padding: 20px 16px 36px;
+      }
+
+      header {
+        padding: 18px 16px;
+      }
+
+      .metrics,
+      .layout,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Incident Triage Copilot</h1>
+    <p>Engineer incident operations dashboard</p>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <h2>Incident Overview</h2>
+      <button id="refresh-button" type="button">
+        Refresh data
+      </button>
+    </section>
+
+    <section class="metrics" aria-label="Incident metrics">
+      <article class="metric">
+        <span class="metric-label">Open incidents</span>
+        <strong class="metric-value" id="open-count">-</strong>
+      </article>
+
+      <article class="metric">
+        <span class="metric-label">Needs engineer review</span>
+        <strong
+          class="metric-value metric-danger"
+          id="review-count"
+        >
+          -
+        </strong>
+      </article>
+
+      <article class="metric">
+        <span class="metric-label">Critical predictions</span>
+        <strong
+          class="metric-value metric-danger"
+          id="critical-count"
+        >
+          -
+        </strong>
+      </article>
+
+      <article class="metric">
+        <span class="metric-label">Pending notifications</span>
+        <strong
+          class="metric-value"
+          id="notification-count"
+        >
+          -
+        </strong>
+      </article>
+    </section>
+
+    <section class="layout">
+      <article class="panel">
+        <div class="panel-header">
+          <h3>Recent Incidents</h3>
+        </div>
+        <ul class="incident-list" id="incident-list"></ul>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <h3>Engineer Notifications</h3>
+        </div>
+        <ul
+          class="notification-list"
+          id="notification-list"
+        ></ul>
+      </article>
+    </section>
+
+    <section class="panel" id="incident-detail-panel">
+      <div class="panel-header">
+        <h3>Incident Details</h3>
+      </div>
+      <div class="empty" id="incident-detail">
+        Select an incident to view its triage details.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const incidentList = document.getElementById(
+      "incident-list"
+    );
+
+    const notificationList = document.getElementById(
+      "notification-list"
+    );
+
+    const incidentDetail = document.getElementById(
+      "incident-detail"
+    );
+
+    let incidentsById = {};
+
+    function escapeHtml(value) {
+      const element = document.createElement("div");
+      element.textContent = value ?? "";
+      return element.innerHTML;
+    }
+
+    function formatDate(value) {
+      return new Date(value).toLocaleString();
+    }
+
+    function formatConfidence(value) {
+      if (value === null || value === undefined) {
+        return "Not available";
+      }
+
+      return `${Math.round(value * 100)}%`;
+    }
+
+    function renderIncidentDetail(incident) {
+      incidentDetail.className = "detail-content";
+
+      incidentDetail.innerHTML = `
+        <p class="incident-title">
+          ${escapeHtml(incident.title)}
+        </p>
+
+        <p class="detail-text">
+          ${escapeHtml(incident.description)}
+        </p>
+
+        <div class="detail-grid">
+          <div>
+            <span class="detail-label">Service</span>
+            <span class="detail-value">
+              ${escapeHtml(incident.service_name)}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">
+              Predicted category
+            </span>
+            <span class="detail-value">
+              ${escapeHtml(
+                incident.predicted_category || "Not available"
+              )}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">
+              Predicted severity
+            </span>
+            <span class="detail-value">
+              ${escapeHtml(
+                incident.predicted_severity || incident.severity
+              )}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">
+              Category confidence
+            </span>
+            <span class="detail-value">
+              ${formatConfidence(incident.category_confidence)}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">
+              Severity confidence
+            </span>
+            <span class="detail-value">
+              ${formatConfidence(incident.severity_confidence)}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">Triage route</span>
+            <span class="detail-value">
+              ${escapeHtml(
+                incident.triage_route || "Not available"
+              )}
+            </span>
+          </div>
+        </div>
+
+        <div class="detail-reason">
+          <span class="detail-label">Triage reason</span>
+          <p class="detail-text">
+            ${escapeHtml(
+              incident.triage_reason || "No triage reason saved."
+            )}
+          </p>
+        </div>
+
+        <div class="detail-reason">
+          <span class="detail-label">
+            Suspected change events
+          </span>
+          <p class="detail-text" id="correlation-evidence">
+            Loading correlation evidence...
+          </p>
+        </div>
+
+        <div class="detail-reason">
+          <span class="detail-label">
+            Remediation recommendations
+          </span>
+          <p class="detail-text" id="recommendation-evidence">
+            Loading recommendations...
+          </p>
+        </div>
+      `;
+    }
+
+    async function loadIncidentInvestigation(incident) {
+      renderIncidentDetail(incident);
+
+      const correlationElement = document.getElementById(
+        "correlation-evidence"
+      );
+
+      const recommendationElement = document.getElementById(
+        "recommendation-evidence"
+      );
+
+      try {
+        const [correlationResponse, recommendationResponse] =
+          await Promise.all([
+            fetch(
+              `/incidents/${incident.id}/correlation-timeline`
+            ),
+            fetch(
+              `/incidents/${incident.id}/recommendations`
+            ),
+          ]);
+
+        const correlations = await correlationResponse.json();
+
+        const recommendations =
+          await recommendationResponse.json();
+
+        if (correlations.length) {
+          const strongest = correlations[0];
+
+          correlationElement.textContent =
+            `${strongest.event_type} `
+            + `${strongest.reference_id || "without reference ID"} `
+            + `has a correlation score of `
+            + `${strongest.correlation_score}. `
+            + strongest.correlation_reason;
+        } else {
+          correlationElement.textContent =
+            "No saved correlation evidence.";
+        }
+
+        if (recommendations.length) {
+          const newest = recommendations[0];
+
+          recommendationElement.textContent =
+            `${newest.recommendation} `
+            + `Status: ${newest.status}.`;
+        } else {
+          recommendationElement.textContent =
+            "No remediation recommendation saved.";
+        }
+      } catch (error) {
+        correlationElement.textContent =
+          "Could not load correlation evidence.";
+
+        recommendationElement.textContent =
+          "Could not load remediation recommendations.";
+      }
+    }
+
+    function renderIncidents(incidents) {
+      if (!incidents.length) {
+        incidentList.innerHTML =
+          '<li class="empty">No incidents found.</li>';
+        return;
+      }
+
+      incidentsById = Object.fromEntries(
+        incidents.map(
+          (incident) => [incident.id, incident]
+        )
+      );
+
+      incidentList.innerHTML = incidents.slice(0, 10).map(
+        (incident) => `
+          <li class="incident-item">
+            <button
+              class="incident-button"
+              type="button"
+              data-incident-id="${incident.id}"
+            >
+              <p class="incident-title">
+                ${escapeHtml(incident.title)}
+              </p>
+
+              <p class="incident-meta">
+                <span class="badge badge-open">
+                  ${escapeHtml(incident.status)}
+                </span>
+
+                <span class="badge badge-high">
+                  ${escapeHtml(
+                    incident.predicted_severity
+                    || incident.severity
+                  )}
+                </span>
+
+                ${escapeHtml(incident.service_name)}
+                · ${formatDate(incident.created_at)}
+              </p>
+            </button>
+          </li>
+        `
+      ).join("");
+
+      document.querySelectorAll(".incident-button").forEach(
+        (button) => {
+          button.addEventListener("click", () => {
+            const incident = incidentsById[
+              button.dataset.incidentId
+            ];
+
+            loadIncidentInvestigation(incident);
+          });
+        }
+      );
+    }
+
+    function renderNotifications(notifications) {
+      if (!notifications.length) {
+        notificationList.innerHTML =
+          '<li class="empty">No engineer notifications.</li>';
+        return;
+      }
+
+      notificationList.innerHTML = notifications.map(
+        (notification) => {
+          const isRead = notification.status === "read";
+
+          const acknowledgement = isRead
+            ? `Acknowledged in Slack by `
+              + `${notification.acknowledged_by || "engineer"}.`
+            : "Waiting for engineer acknowledgement.";
+
+          return `
+            <li class="notification-item">
+              <p class="incident-title">
+                <span class="badge ${
+                  isRead ? "badge-open" : "badge-review"
+                }">
+                  ${isRead ? "Acknowledged" : "Review required"}
+                </span>
+              </p>
+
+              <p class="notification-meta">
+                ${escapeHtml(notification.message)}
+              </p>
+
+              <p class="notification-meta">
+                ${escapeHtml(acknowledgement)}
+              </p>
+            </li>
+          `;
+        }
+      ).join("");
+    }
+
+    async function loadDashboard() {
+      try {
+        const [incidentResponse, notificationResponse] =
+          await Promise.all([
+            fetch("/incidents?limit=100"),
+            fetch("/engineer-notifications"),
+          ]);
+
+        if (!incidentResponse.ok || !notificationResponse.ok) {
+          throw new Error("Could not load dashboard data.");
+        }
+
+        const incidents = await incidentResponse.json();
+
+        const notifications =
+          await notificationResponse.json();
+
+        const openIncidents = incidents.filter(
+          (incident) => incident.status !== "resolved"
+        );
+
+        const pendingNotifications = notifications.filter(
+          (notification) => notification.status === "pending"
+        );
+
+        document.getElementById("open-count").textContent =
+          openIncidents.length;
+
+        document.getElementById("review-count").textContent =
+          openIncidents.filter(
+            (incident) => incident.human_review_required
+          ).length;
+
+        document.getElementById("critical-count").textContent =
+          openIncidents.filter(
+            (incident) =>
+              incident.predicted_severity === "critical"
+          ).length;
+
+        document.getElementById("notification-count").textContent =
+          pendingNotifications.length;
+
+        renderIncidents(incidents);
+        renderNotifications(notifications);
+      } catch (error) {
+        incidentList.innerHTML =
+          `<li class="error">${escapeHtml(error.message)}</li>`;
+
+        notificationList.innerHTML =
+          `<li class="error">${escapeHtml(error.message)}</li>`;
+      }
+    }
+
+    document.getElementById("refresh-button").addEventListener(
+      "click",
+      loadDashboard
+    );
+
+    loadDashboard();
+  </script>
+</body>
+</html>

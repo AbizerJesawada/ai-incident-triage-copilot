@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
 from contextlib import asynccontextmanager
 from uuid import UUID
 from datetime import datetime, timezone
 from fastapi import Depends, FastAPI, HTTPException, Query, status, Request
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from time import perf_counter
@@ -53,6 +55,8 @@ from app.slack_event_service import (
     is_valid_slack_request,
 )
 
+STATIC_DIR = Path(__file__).parent / "static"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -71,6 +75,10 @@ def health_check() -> dict[str, str]:
         "status": "ok",
         "service": "ai-incident-triage-copilot-backend",
     }
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.post(

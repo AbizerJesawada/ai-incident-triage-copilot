@@ -293,3 +293,16 @@ The backend verifies the Slack event, finds the matching PostgreSQL notification
 - Acknowledgement time in `acknowledged_at`
 
 During local development, ngrok provides a temporary public URL so Slack can send reaction events to the local backend.
+
+## Day 16: Engineer Dashboard
+
+Open the dashboard at:
+
+`http://localhost:8000/dashboard`
+
+The dashboard shows:
+- Incident metrics and recent incidents
+- ML triage details and confidence
+- Correlated change-event evidence
+- Remediation recommendations
+- Pending and Slack-acknowledged engineer notifications
