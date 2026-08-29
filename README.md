@@ -306,3 +306,10 @@ The dashboard shows:
 - Correlated change-event evidence
 - Remediation recommendations
 - Pending and Slack-acknowledged engineer notifications
+
+## Day 17: Automated Tests
+
+Run automated checks with:
+
+```bash
+docker compose run --rm backend pytest tests -v
