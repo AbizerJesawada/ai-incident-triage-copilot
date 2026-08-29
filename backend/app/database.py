@@ -5,20 +5,36 @@ from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
-POSTGRES_DB = os.environ["POSTGRES_DB"]
-POSTGRES_USER = os.environ["POSTGRES_USER"]
-POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "postgres")
-POSTGRES_PORT = int(os.environ.get("POSTGRES_PORT", "5432"))
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASE_URL = URL.create(
-    drivername="postgresql+psycopg",
-    username=POSTGRES_USER,
-    password=POSTGRES_PASSWORD,
-    host=POSTGRES_HOST,
-    port=POSTGRES_PORT,
-    database=POSTGRES_DB,
-)
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgres://",
+            "postgresql+psycopg://",
+            1,
+        )
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgresql://",
+            "postgresql+psycopg://",
+            1,
+        )
+else:
+    POSTGRES_DB = os.environ["POSTGRES_DB"]
+    POSTGRES_USER = os.environ["POSTGRES_USER"]
+    POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]
+    POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "postgres")
+    POSTGRES_PORT = int(os.environ.get("POSTGRES_PORT", "5432"))
+
+    DATABASE_URL = URL.create(
+        drivername="postgresql+psycopg",
+        username=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        database=POSTGRES_DB,
+    )
 
 engine = create_engine(DATABASE_URL)
 
