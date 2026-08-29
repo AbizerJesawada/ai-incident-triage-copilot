@@ -313,3 +313,50 @@ Run automated checks with:
 
 ```bash
 docker compose run --rm backend pytest tests -v
+
+```md
+## Day 18: Cloud Deployment with Render
+
+The Incident Triage Copilot is deployed on Render.
+
+- API: https://incident-copilot-api.onrender.com
+- Health check: https://incident-copilot-api.onrender.com/health
+- Swagger API docs: https://incident-copilot-api.onrender.com/docs
+- Dashboard: https://incident-copilot-api.onrender.com/dashboard
+
+### Deployment Architecture
+
+- Render Web Service runs the FastAPI backend.
+- Render Postgres stores incidents, reviews, notifications, and Slack acknowledgements.
+- Slack sends `eyes` reaction events to the deployed backend.
+- The trained ML model is packaged inside the Docker image.
+
+### Render Environment Variables
+
+Configure these values in the Render web service. Do not commit them to GitHub:
+
+    DATABASE_URL
+    GEMINI_API_KEY
+    SLACK_BOT_TOKEN
+    SLACK_CHANNEL_ID
+    SLACK_SIGNING_SECRET
+
+### Slack Event URL
+
+Configure this Request URL in Slack Event Subscriptions:
+
+    https://incident-copilot-api.onrender.com/slack/events
+
+Keep Socket Mode disabled.
+
+### Verify the Deployment
+
+1. Open the online Swagger docs.
+2. Create an incident with `POST /incidents`.
+3. Confirm that the incident is saved in the online dashboard.
+4. Confirm that Slack receives an engineer-review alert.
+5. React to the Slack alert with `eyes`.
+6. Refresh the dashboard and verify that the notification status becomes `Read`.
+
+> Render's free web service can sleep after inactivity. The first request after sleeping can take up to about one minute.
+```
