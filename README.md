@@ -384,3 +384,26 @@ The candidate model was tested using 16 separate unseen evaluation incidents.
 The candidate improved both scores but was not promoted because severity accuracy remains too low for safe incident escalation.
 
 > The 300-row dataset is curated demo data for learning and testing. Production training must use anonymized historical incidents with engineer-confirmed category and severity labels.
+
+## Day 20: Severity Guardrails
+
+Severity predictions now use both ML and safety rules.
+
+The ML model predicts an initial severity. A guardrail then checks the incident title and description for important impact phrases before routing the incident.
+
+### Guardrail Examples
+
+| Incident text | ML prediction | Final severity |
+|---|---|---|
+| "All users cannot log in. Service unavailable." | medium | critical |
+| "Many users cannot complete payments." | low | high |
+| "A small number of users are affected. Retrying succeeds." | critical | high |
+
+### Safety Rule Result
+
+A critical phrase overrides an unsafe lower ML prediction:
+
+```text
+ML prediction: medium
+Guardrail result: critical
+Route: critical_escalation
