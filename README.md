@@ -360,3 +360,27 @@ Keep Socket Mode disabled.
 
 > Render's free web service can sleep after inactivity. The first request after sleeping can take up to about one minute.
 ```
+
+## Day 19: Training Data and Candidate Evaluation
+
+The original classifier dataset contained 50 curated demo incidents.
+
+A balanced 300-row demo dataset was created for ML experiments:
+
+- 75 rows for each category:
+  `application_error`, `database`, `network`, and `authentication`
+- 75 rows for each severity:
+  `low`, `medium`, `high`, and `critical`
+
+### Candidate Evaluation
+
+The candidate model was tested using 16 separate unseen evaluation incidents.
+
+| Model | Category Accuracy | Severity Accuracy |
+|---|---:|---:|
+| Active model | 0.7500 | 0.1875 |
+| Candidate model | 0.8750 | 0.3125 |
+
+The candidate improved both scores but was not promoted because severity accuracy remains too low for safe incident escalation.
+
+> The 300-row dataset is curated demo data for learning and testing. Production training must use anonymized historical incidents with engineer-confirmed category and severity labels.

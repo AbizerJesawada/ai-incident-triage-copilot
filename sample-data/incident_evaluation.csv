@@ -1,0 +1,17 @@
+title,description,service_name,category,severity
+Receipt PDF occasionally misses logo,A small number of receipt PDFs are missing the company logo but payments complete successfully.,billing-api,application_error,low
+Search results show stale prices,Product search displays old prices for several minutes after a catalog update.,catalog-api,application_error,medium
+Mobile checkout throws exceptions for most cards,Most mobile customers receive an unexpected error while submitting card payments.,checkout-api,application_error,high
+Order confirmation worker crashes for every purchase,Every completed purchase fails before an order confirmation can be created.,orders-api,application_error,critical
+Customer records database entered recovery mode,The customer database is unavailable while PostgreSQL attempts crash recovery.,customer-api,database,critical
+Read replica metric job is delayed,A reporting replica sends monitoring metrics late but read requests still work.,analytics-api,database,low
+Product catalog queries block for several seconds,Catalog queries wait on database locks and page loading is noticeably slower.,catalog-api,database,medium
+Session store database rejects new writes,The session database rejects write operations and many users are signed out.,identity-api,database,high
+Warehouse scanners lose connection to API,Scanner devices frequently lose their connection while processing inventory updates.,inventory-api,network,high
+Edge router drops all inbound traffic,A routing configuration failure prevents every external request from reaching the platform.,gateway-api,network,critical
+One monitoring node resolves DNS slowly,A monitoring node takes longer than usual to resolve an internal hostname.,monitoring-api,network,low
+Email provider connections reset intermittently,Some notification requests fail because outbound connections reset before delivery.,notification-api,network,medium
+New employees cannot enroll security keys,New employee accounts cannot finish security key registration.,identity-api,authentication,medium
+Partner users are stuck in an SSO redirect loop,Partner users repeatedly return to the sign in page and cannot access the portal.,portal-api,authentication,high
+No user sessions can be issued,The token signing service is unavailable and every login attempt fails.,identity-api,authentication,critical
+Password reset links expire early,Password reset links stop working two minutes before their expected expiry time.,identity-api,authentication,low

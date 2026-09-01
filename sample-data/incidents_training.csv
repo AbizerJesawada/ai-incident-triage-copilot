@@ -31,3 +31,23 @@ API key rejected by payment provider,"Payment requests fail because the external
 Role permission denied,"Support users cannot access the incident dashboard due to missing permissions.",dashboard,authentication,low
 Authentication rate limit triggered,"A large number of login attempts causes legitimate users to be rate limited.",auth-api,authentication,medium
 OAuth callback mismatch,"Login fails because the OAuth redirect URL does not match the configured value.",auth-api,authentication,medium
+Minor dashboard display delay,"The internal dashboard loads a few seconds slowly but remains usable.",dashboard,application_error,low
+Noncritical notification delay,"Some nonurgent email notifications arrive later than expected.",notification-api,network,low
+
+Admin report page loads slowly,The internal reporting page takes eight seconds to load but customers are not affected.,reporting-api,application_error,low
+Checkout returns invalid tax total,The checkout page displays an incorrect tax total for a small group of orders.,checkout-api,application_error,low
+Checkout service returns 500 errors,All checkout requests return 500 errors immediately after a release.,checkout-api,application_error,critical
+Invoice API times out for customers,Invoice requests time out for many customers during peak traffic.,billing-api,application_error,high
+Primary database cannot accept connections,The primary PostgreSQL database refuses all new connections and payments fail.,payment-api,database,critical
+Database disk space is exhausted,The orders database has no remaining disk space and writes are failing.,orders-api,database,critical
+Nightly backup finished late,The analytics database backup completed later than expected but data is available.,analytics-api,database,low
+Database query is slower than normal,A dashboard query is slower than normal but still completes successfully.,reporting-api,database,medium
+Customer portal has intermittent DNS failure,The customer portal retries one DNS lookup before successfully loading.,portal-api,network,low
+Office users cannot reach dashboard,A private office network cannot reach the internal dashboard but public users can.,dashboard-api,network,low
+Payment API cannot reach database host,The payment API cannot resolve the database host and all payment requests fail.,payment-api,network,critical
+API gateway has high packet loss,The API gateway has packet loss that is causing some customer requests to fail.,gateway-api,network,high
+Password reset email arrives late,Password reset messages arrive several minutes late but accounts remain secure.,identity-api,authentication,low
+All users are locked out of login,Valid users cannot log in because the identity provider rejects every token.,identity-api,authentication,critical
+Service account token expires early,A service account token expires earlier than expected and automated jobs fail.,automation-api,authentication,critical
+MFA prompt is delayed,Multi factor authentication prompts are delayed but users can still sign in.,identity-api,authentication,medium
+

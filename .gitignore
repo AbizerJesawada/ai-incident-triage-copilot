@@ -6,3 +6,6 @@ node_modules/
 .next/
 backend/artifacts/*.joblib
 backend/artifacts/*.json
+sample-data/external/
+
+sample-data/external/

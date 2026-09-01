@@ -1,0 +1,301 @@
+title,description,service_name,category,severity
+Payment API returns 500 errors,Customers receive HTTP 500 errors during checkout requests.,payment-api,application_error,high
+Checkout request validation failed,The checkout service rejects valid payment requests after a recent release.,checkout-api,application_error,medium
+Order processing worker crashed,The order worker exits with an unhandled exception while processing orders.,order-worker,application_error,high
+Search API returns empty results,The search endpoint returns empty results even when matching products exist.,search-api,application_error,medium
+Invoice generation job failed,The billing job cannot generate customer invoices because of an application exception.,billing-worker,application_error,high
+Profile API response serialization error,The profile endpoint fails while converting account data into a response.,profile-api,application_error,medium
+Recommendation service crash loop,The recommendation service repeatedly restarts after a runtime exception.,recommendation-api,application_error,critical
+Webhook handler returns 500,Incoming payment-provider webhooks fail with an application error.,webhook-api,application_error,high
+Database connection pool exhausted,New requests cannot get a database connection because the pool is exhausted.,payment-api,database,critical
+PostgreSQL replication lag is high,Read replicas are several minutes behind the primary database.,reporting-api,database,high
+Database query timeout,Customer lookup queries exceed the configured database timeout.,customer-api,database,high
+Migration lock blocks writes,A database migration holds a lock and prevents order updates.,order-api,database,critical
+Database disk space warning,The PostgreSQL data volume is above eighty percent capacity.,database,database,medium
+Slow database query detected,A reporting query scans too many rows and slows the dashboard.,reporting-api,database,medium
+Database authentication failed,The service cannot connect because its database credentials were rejected.,inventory-api,database,high
+Cache database unavailable,The session store cannot reach the database used for persistent cache data.,session-api,database,high
+External payment gateway timeout,Requests to the payment provider time out after thirty seconds.,payment-api,network,high
+Service DNS lookup failed,The order service cannot resolve the inventory service hostname.,order-api,network,high
+Load balancer health check failed,The load balancer marks all instances of the catalog service unhealthy.,catalog-api,network,critical
+High packet loss between services,Requests between checkout and payment services fail intermittently.,checkout-api,network,high
+CDN connection issue,Static assets load slowly because the CDN origin connection is unstable.,frontend,network,medium
+Internal API connection refused,The notification service rejects connections from the order worker.,notification-api,network,medium
+Network latency increased,Requests to the search cluster have unusually high latency.,search-api,network,medium
+Webhook provider unreachable,The external provider cannot deliver webhooks to the public endpoint.,webhook-api,network,low
+User login fails with invalid token,Valid users cannot log in because access tokens are rejected.,auth-api,authentication,high
+Single sign-on provider unavailable,Employees cannot sign in because the SSO provider connection fails.,auth-api,authentication,critical
+Expired service credential,The reporting service fails because its service account credential expired.,reporting-api,authentication,high
+Password reset email token invalid,Users cannot reset passwords because reset tokens fail validation.,identity-api,authentication,medium
+API key rejected by payment provider,Payment requests fail because the external API key is invalid.,payment-api,authentication,high
+Role permission denied,Support users cannot access the incident dashboard due to missing permissions.,dashboard,authentication,low
+Authentication rate limit triggered,A large number of login attempts causes legitimate users to be rate limited.,auth-api,authentication,medium
+OAuth callback mismatch,Login fails because the OAuth redirect URL does not match the configured value.,auth-api,authentication,medium
+Minor dashboard display delay,The internal dashboard loads a few seconds slowly but remains usable.,dashboard,application_error,low
+Noncritical notification delay,Some nonurgent email notifications arrive later than expected.,notification-api,network,low
+Admin report page loads slowly,The internal reporting page takes eight seconds to load but customers are not affected.,reporting-api,application_error,low
+Checkout returns invalid tax total,The checkout page displays an incorrect tax total for a small group of orders.,checkout-api,application_error,low
+Checkout service returns 500 errors,All checkout requests return 500 errors immediately after a release.,checkout-api,application_error,critical
+Invoice API times out for customers,Invoice requests time out for many customers during peak traffic.,billing-api,application_error,high
+Primary database cannot accept connections,The primary PostgreSQL database refuses all new connections and payments fail.,payment-api,database,critical
+Database disk space is exhausted,The orders database has no remaining disk space and writes are failing.,orders-api,database,critical
+Nightly backup finished late,The analytics database backup completed later than expected but data is available.,analytics-api,database,low
+Database query is slower than normal,A dashboard query is slower than normal but still completes successfully.,reporting-api,database,medium
+Customer portal has intermittent DNS failure,The customer portal retries one DNS lookup before successfully loading.,portal-api,network,low
+Office users cannot reach dashboard,A private office network cannot reach the internal dashboard but public users can.,dashboard-api,network,low
+Payment API cannot reach database host,The payment API cannot resolve the database host and all payment requests fail.,payment-api,network,critical
+API gateway has high packet loss,The API gateway has packet loss that is causing some customer requests to fail.,gateway-api,network,high
+Password reset email arrives late,Password reset messages arrive several minutes late but accounts remain secure.,identity-api,authentication,low
+All users are locked out of login,Valid users cannot log in because the identity provider rejects every token.,identity-api,authentication,critical
+Service account token expires early,A service account token expires earlier than expected and automated jobs fail.,automation-api,authentication,critical
+MFA prompt is delayed,Multi factor authentication prompts are delayed but users can still sign in.,identity-api,authentication,medium
+payment-api cannot obtain a database connection,The database cannot accept a new write from the application. A small number of requests are affected and retrying usually succeeds.,payment-api,database,low
+admin-api rejects valid access tokens,Valid users receive an authentication failure during sign in. Users can continue working after a short delay.,admin-api,authentication,low
+billing-api returns unexpected server errors,The service logs repeated internal errors for the same workflow. The service is unavailable for customers and there is no working workaround.,billing-api,application_error,critical
+payment-api cannot obtain a database connection,PostgreSQL has no available connections for the service. A small number of requests are affected and retrying usually succeeds.,payment-api,database,low
+portal-api has connection timeout errors,Intermittent packet loss interrupts requests to an upstream service. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,network,critical
+billing-api rejects valid access tokens,A service account cannot authenticate to a required dependency. The issue affects a noncritical workflow with no data loss.,billing-api,authentication,low
+orders-api has an exception during request handling,The service logs repeated internal errors for the same workflow. The issue affects an important feature but a temporary workaround exists.,orders-api,application_error,medium
+payment-api database queries are failing,The connection pool is exhausted during normal traffic. The service is unavailable for customers and there is no working workaround.,payment-api,database,critical
+identity-api has intermittent network failures,DNS resolution fails for an internal service hostname. The issue affects a noncritical workflow with no data loss.,identity-api,network,low
+identity-api users cannot complete sign in,The multi factor authentication step cannot be completed. Multiple users experience delays and the affected workflow is degraded.,identity-api,authentication,medium
+catalog-api cannot complete a customer workflow,The service logs repeated internal errors for the same workflow. The service is unavailable for customers and there is no working workaround.,catalog-api,application_error,critical
+payment-api database operation is timing out,A required database transaction is rolled back unexpectedly. A small number of requests are affected and retrying usually succeeds.,payment-api,database,low
+notification-api cannot reach an upstream service,Intermittent packet loss interrupts requests to an upstream service. The issue affects an important feature but a temporary workaround exists.,notification-api,network,medium
+billing-api has an authentication validation error,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,billing-api,authentication,critical
+checkout-api returns unexpected server errors,A recent code path returns an invalid response to callers. The issue affects a noncritical workflow with no data loss.,checkout-api,application_error,low
+payment-api database queries are failing,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,payment-api,database,medium
+identity-api requests fail through the API gateway,Network requests time out before an upstream response arrives. A large group of users cannot complete the affected workflow.,identity-api,network,high
+portal-api has an authentication validation error,The identity provider rejects a token that should be valid. A production-critical operation is failing for every affected request.,portal-api,authentication,critical
+catalog-api returns unexpected server errors,The service logs repeated internal errors for the same workflow. Users can continue working after a short delay.,catalog-api,application_error,low
+orders-api reports a database resource problem,A database query exceeds its allowed execution time. Multiple users experience delays and the affected workflow is degraded.,orders-api,database,medium
+notification-api requests fail through the API gateway,Network requests time out before an upstream response arrives. The incident has significant business impact and requires fast action.,notification-api,network,high
+billing-api rejects valid access tokens,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,billing-api,authentication,critical
+orders-api returns unexpected server errors,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,orders-api,application_error,low
+inventory-api cannot obtain a database connection,A database query exceeds its allowed execution time. The service remains available but some requests fail.,inventory-api,database,medium
+identity-api has intermittent network failures,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,identity-api,network,high
+automation-api rejects valid access tokens,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+orders-api returns invalid response data,The service logs repeated internal errors for the same workflow. The issue affects a noncritical workflow with no data loss.,orders-api,application_error,low
+billing-api database operation is timing out,A required database transaction is rolled back unexpectedly. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+identity-api has intermittent network failures,DNS resolution fails for an internal service hostname. The incident has significant business impact and requires fast action.,identity-api,network,high
+automation-api users cannot complete sign in,Valid users receive an authentication failure during sign in. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+orders-api request processing fails,An application dependency returns data the service cannot process. Users can continue working after a short delay.,orders-api,application_error,low
+payment-api database operation is timing out,The connection pool is exhausted during normal traffic. The service remains available but some requests fail.,payment-api,database,medium
+notification-api has connection timeout errors,Network requests time out before an upstream response arrives. The incident has significant business impact and requires fast action.,notification-api,network,high
+identity-api users cannot complete sign in,A service account cannot authenticate to a required dependency. The service is unavailable for customers and there is no working workaround.,identity-api,authentication,critical
+catalog-api returns unexpected server errors,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,catalog-api,application_error,low
+orders-api database operation is timing out,PostgreSQL has no available connections for the service. The service remains available but some requests fail.,orders-api,database,medium
+identity-api has connection timeout errors,DNS resolution fails for an internal service hostname. The incident has significant business impact and requires fast action.,identity-api,network,high
+identity-api has an authentication validation error,A service account cannot authenticate to a required dependency. A production-critical operation is failing for every affected request.,identity-api,authentication,critical
+orders-api request processing fails,The service fails while processing a normal customer request. A small number of requests are affected and retrying usually succeeds.,orders-api,application_error,low
+billing-api reports a database resource problem,PostgreSQL has no available connections for the service. The service remains available but some requests fail.,billing-api,database,medium
+identity-api requests fail through the API gateway,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,identity-api,network,high
+portal-api has an authentication validation error,The identity provider rejects a token that should be valid. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,authentication,critical
+orders-api returns invalid response data,The request handler raises an unhandled exception during processing. A small number of requests are affected and retrying usually succeeds.,orders-api,application_error,low
+analytics-api cannot obtain a database connection,A required database transaction is rolled back unexpectedly. Multiple users experience delays and the affected workflow is degraded.,analytics-api,database,medium
+portal-api requests fail through the API gateway,Intermittent packet loss interrupts requests to an upstream service. A large group of users cannot complete the affected workflow.,portal-api,network,high
+portal-api has a multi factor authentication problem,A service account cannot authenticate to a required dependency. The service is unavailable for customers and there is no working workaround.,portal-api,authentication,critical
+orders-api returns invalid response data,A recent code path returns an invalid response to callers. Users can continue working after a short delay.,orders-api,application_error,low
+inventory-api database operation is timing out,The database cannot accept a new write from the application. The issue affects an important feature but a temporary workaround exists.,inventory-api,database,medium
+checkout-api requests fail through the API gateway,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,checkout-api,network,high
+admin-api users cannot complete sign in,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,admin-api,authentication,critical
+billing-api returns invalid response data,A recent code path returns an invalid response to callers. Users can continue working after a short delay.,billing-api,application_error,low
+orders-api cannot obtain a database connection,PostgreSQL has no available connections for the service. The service remains available but some requests fail.,orders-api,database,medium
+gateway-api has intermittent network failures,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,gateway-api,network,high
+portal-api users cannot complete sign in,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,authentication,critical
+catalog-api has an exception during request handling,A recent code path returns an invalid response to callers. Users can continue working after a short delay.,catalog-api,application_error,low
+orders-api reports a database resource problem,A required database transaction is rolled back unexpectedly. The issue affects an important feature but a temporary workaround exists.,orders-api,database,medium
+portal-api requests fail through the API gateway,The gateway reports failed connections between services. A large group of users cannot complete the affected workflow.,portal-api,network,high
+identity-api users cannot complete sign in,The multi factor authentication step cannot be completed. The service is unavailable for customers and there is no working workaround.,identity-api,authentication,critical
+reporting-api has an exception during request handling,An application dependency returns data the service cannot process. Users can continue working after a short delay.,reporting-api,application_error,low
+payment-api cannot obtain a database connection,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,payment-api,database,medium
+identity-api cannot reach an upstream service,DNS resolution fails for an internal service hostname. A large group of users cannot complete the affected workflow.,identity-api,network,high
+admin-api has a multi factor authentication problem,The multi factor authentication step cannot be completed. All users are blocked from a critical workflow and immediate escalation is required.,admin-api,authentication,critical
+reporting-api request processing fails,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,reporting-api,application_error,low
+orders-api cannot obtain a database connection,The connection pool is exhausted during normal traffic. The service remains available but some requests fail.,orders-api,database,medium
+gateway-api cannot reach an upstream service,Intermittent packet loss interrupts requests to an upstream service. A large group of users cannot complete the affected workflow.,gateway-api,network,high
+identity-api rejects valid access tokens,The identity provider rejects a token that should be valid. The service is unavailable for customers and there is no working workaround.,identity-api,authentication,critical
+reporting-api has an exception during request handling,A recent code path returns an invalid response to callers. The issue affects a noncritical workflow with no data loss.,reporting-api,application_error,low
+payment-api database queries are failing,The connection pool is exhausted during normal traffic. Multiple users experience delays and the affected workflow is degraded.,payment-api,database,medium
+notification-api cannot resolve a required hostname,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,notification-api,network,high
+automation-api has a multi factor authentication problem,The multi factor authentication step cannot be completed. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+orders-api cannot complete a customer workflow,A recent code path returns an invalid response to callers. A small number of requests are affected and retrying usually succeeds.,orders-api,application_error,low
+billing-api reports a database resource problem,PostgreSQL has no available connections for the service. The service remains available but some requests fail.,billing-api,database,medium
+identity-api cannot reach an upstream service,The service cannot establish a connection to its required dependency. The incident has significant business impact and requires fast action.,identity-api,network,high
+automation-api has a multi factor authentication problem,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+checkout-api returns invalid response data,The request handler raises an unhandled exception during processing. A small number of requests are affected and retrying usually succeeds.,checkout-api,application_error,low
+payment-api reports a database resource problem,PostgreSQL has no available connections for the service. The service remains available but some requests fail.,payment-api,database,medium
+portal-api requests fail through the API gateway,The service cannot establish a connection to its required dependency. The incident has significant business impact and requires fast action.,portal-api,network,high
+admin-api has a multi factor authentication problem,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,admin-api,authentication,critical
+billing-api returns unexpected server errors,An application dependency returns data the service cannot process. Users can continue working after a short delay.,billing-api,application_error,low
+billing-api reports a database resource problem,A required database transaction is rolled back unexpectedly. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+identity-api has intermittent network failures,Network requests time out before an upstream response arrives. A large group of users cannot complete the affected workflow.,identity-api,network,high
+portal-api cannot verify user credentials,The identity provider rejects a token that should be valid. A production-critical operation is failing for every affected request.,portal-api,authentication,critical
+catalog-api has an exception during request handling,The service fails while processing a normal customer request. A small number of requests are affected and retrying usually succeeds.,catalog-api,application_error,low
+payment-api database operation is timing out,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,payment-api,database,medium
+gateway-api cannot reach an upstream service,Intermittent packet loss interrupts requests to an upstream service. A large group of users cannot complete the affected workflow.,gateway-api,network,high
+billing-api has an authentication validation error,The identity provider rejects a token that should be valid. The service is unavailable for customers and there is no working workaround.,billing-api,authentication,critical
+checkout-api request processing fails,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,checkout-api,application_error,low
+orders-api database operation is timing out,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,orders-api,database,medium
+identity-api has connection timeout errors,Intermittent packet loss interrupts requests to an upstream service. A large group of users cannot complete the affected workflow.,identity-api,network,high
+billing-api has an authentication validation error,Valid users receive an authentication failure during sign in. All users are blocked from a critical workflow and immediate escalation is required.,billing-api,authentication,critical
+catalog-api returns unexpected server errors,The request handler raises an unhandled exception during processing. Users can continue working after a short delay.,catalog-api,application_error,low
+billing-api database queries are failing,The database cannot accept a new write from the application. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+checkout-api has intermittent network failures,Network requests time out before an upstream response arrives. A large group of users cannot complete the affected workflow.,checkout-api,network,high
+portal-api has a multi factor authentication problem,The multi factor authentication step cannot be completed. The service is unavailable for customers and there is no working workaround.,portal-api,authentication,critical
+checkout-api returns unexpected server errors,An application dependency returns data the service cannot process. The issue affects a noncritical workflow with no data loss.,checkout-api,application_error,low
+payment-api cannot obtain a database connection,The database cannot accept a new write from the application. Multiple users experience delays and the affected workflow is degraded.,payment-api,database,medium
+identity-api has intermittent network failures,The gateway reports failed connections between services. The incident has significant business impact and requires fast action.,identity-api,network,high
+automation-api has a multi factor authentication problem,Valid users receive an authentication failure during sign in. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+checkout-api request processing fails,The service logs repeated internal errors for the same workflow. A small number of requests are affected and retrying usually succeeds.,checkout-api,application_error,low
+inventory-api reports a database resource problem,A required database transaction is rolled back unexpectedly. Multiple users experience delays and the affected workflow is degraded.,inventory-api,database,medium
+notification-api has intermittent network failures,The service cannot establish a connection to its required dependency. Customer requests fail repeatedly and engineer investigation is needed.,notification-api,network,high
+portal-api users cannot complete sign in,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,authentication,critical
+orders-api returns unexpected server errors,The service fails while processing a normal customer request. Users can continue working after a short delay.,orders-api,application_error,low
+analytics-api reports a database resource problem,A database query exceeds its allowed execution time. Multiple users experience delays and the affected workflow is degraded.,analytics-api,database,medium
+portal-api has intermittent network failures,The gateway reports failed connections between services. A large group of users cannot complete the affected workflow.,portal-api,network,high
+admin-api has an authentication validation error,The multi factor authentication step cannot be completed. A production-critical operation is failing for every affected request.,admin-api,authentication,critical
+orders-api cannot complete a customer workflow,A recent code path returns an invalid response to callers. Users can continue working after a short delay.,orders-api,application_error,low
+payment-api database operation is timing out,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,payment-api,database,medium
+portal-api has intermittent network failures,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,portal-api,network,high
+portal-api rejects valid access tokens,The identity provider rejects a token that should be valid. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,authentication,critical
+orders-api has an exception during request handling,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,orders-api,application_error,low
+payment-api cannot write records to PostgreSQL,The database cannot accept a new write from the application. The service remains available but some requests fail.,payment-api,database,medium
+checkout-api requests fail through the API gateway,Intermittent packet loss interrupts requests to an upstream service. Customer requests fail repeatedly and engineer investigation is needed.,checkout-api,network,high
+identity-api users cannot complete sign in,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,identity-api,authentication,critical
+billing-api cannot complete a customer workflow,The request handler raises an unhandled exception during processing. A small number of requests are affected and retrying usually succeeds.,billing-api,application_error,low
+billing-api database operation is timing out,The database cannot accept a new write from the application. The service remains available but some requests fail.,billing-api,database,medium
+identity-api requests fail through the API gateway,Intermittent packet loss interrupts requests to an upstream service. The incident has significant business impact and requires fast action.,identity-api,network,high
+identity-api cannot verify user credentials,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,identity-api,authentication,critical
+catalog-api returns unexpected server errors,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,catalog-api,application_error,low
+billing-api reports a database resource problem,A database query exceeds its allowed execution time. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+notification-api cannot reach an upstream service,Network requests time out before an upstream response arrives. The incident has significant business impact and requires fast action.,notification-api,network,high
+portal-api users cannot complete sign in,A credential verification request fails before login completes. A production-critical operation is failing for every affected request.,portal-api,authentication,critical
+catalog-api has an exception during request handling,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,catalog-api,application_error,low
+inventory-api reports a database resource problem,A database query exceeds its allowed execution time. Multiple users experience delays and the affected workflow is degraded.,inventory-api,database,medium
+notification-api requests fail through the API gateway,DNS resolution fails for an internal service hostname. The incident has significant business impact and requires fast action.,notification-api,network,high
+billing-api has an authentication validation error,The multi factor authentication step cannot be completed. A production-critical operation is failing for every affected request.,billing-api,authentication,critical
+checkout-api cannot complete a customer workflow,The service fails while processing a normal customer request. A small number of requests are affected and retrying usually succeeds.,checkout-api,application_error,low
+analytics-api reports a database resource problem,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,analytics-api,database,medium
+identity-api requests fail through the API gateway,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,identity-api,network,high
+admin-api has a multi factor authentication problem,The multi factor authentication step cannot be completed. A production-critical operation is failing for every affected request.,admin-api,authentication,critical
+orders-api returns unexpected server errors,The service fails while processing a normal customer request. Users can continue working after a short delay.,orders-api,application_error,low
+billing-api cannot write records to PostgreSQL,PostgreSQL has no available connections for the service. Multiple users experience delays and the affected workflow is degraded.,billing-api,database,medium
+identity-api has intermittent network failures,DNS resolution fails for an internal service hostname. A large group of users cannot complete the affected workflow.,identity-api,network,high
+identity-api users cannot complete sign in,The identity provider rejects a token that should be valid. The service is unavailable for customers and there is no working workaround.,identity-api,authentication,critical
+billing-api returns unexpected server errors,An application dependency returns data the service cannot process. The issue affects a noncritical workflow with no data loss.,billing-api,application_error,low
+billing-api database queries are failing,The connection pool is exhausted during normal traffic. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+notification-api has intermittent network failures,DNS resolution fails for an internal service hostname. The incident has significant business impact and requires fast action.,notification-api,network,high
+identity-api users cannot complete sign in,The multi factor authentication step cannot be completed. All users are blocked from a critical workflow and immediate escalation is required.,identity-api,authentication,critical
+orders-api returns invalid response data,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,orders-api,application_error,low
+billing-api database queries are failing,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+portal-api requests fail through the API gateway,Intermittent packet loss interrupts requests to an upstream service. The incident has significant business impact and requires fast action.,portal-api,network,high
+billing-api has an authentication validation error,The multi factor authentication step cannot be completed. A production-critical operation is failing for every affected request.,billing-api,authentication,critical
+billing-api has an exception during request handling,The service logs repeated internal errors for the same workflow. The issue affects a noncritical workflow with no data loss.,billing-api,application_error,low
+orders-api database operation is timing out,The connection pool is exhausted during normal traffic. The issue affects an important feature but a temporary workaround exists.,orders-api,database,medium
+portal-api cannot resolve a required hostname,Intermittent packet loss interrupts requests to an upstream service. Customer requests fail repeatedly and engineer investigation is needed.,portal-api,network,high
+admin-api has an authentication validation error,The multi factor authentication step cannot be completed. All users are blocked from a critical workflow and immediate escalation is required.,admin-api,authentication,critical
+catalog-api request processing fails,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,catalog-api,application_error,low
+inventory-api reports a database resource problem,PostgreSQL has no available connections for the service. Multiple users experience delays and the affected workflow is degraded.,inventory-api,database,medium
+portal-api has intermittent network failures,The gateway reports failed connections between services. The incident has significant business impact and requires fast action.,portal-api,network,high
+admin-api rejects valid access tokens,Valid users receive an authentication failure during sign in. The service is unavailable for customers and there is no working workaround.,admin-api,authentication,critical
+reporting-api cannot complete a customer workflow,The service logs repeated internal errors for the same workflow. The issue affects a noncritical workflow with no data loss.,reporting-api,application_error,low
+analytics-api cannot obtain a database connection,A database query exceeds its allowed execution time. The issue affects an important feature but a temporary workaround exists.,analytics-api,database,medium
+notification-api has connection timeout errors,The service cannot establish a connection to its required dependency. The incident has significant business impact and requires fast action.,notification-api,network,high
+automation-api cannot verify user credentials,Valid users receive an authentication failure during sign in. The service is unavailable for customers and there is no working workaround.,automation-api,authentication,critical
+catalog-api has an exception during request handling,An application dependency returns data the service cannot process. Users can continue working after a short delay.,catalog-api,application_error,low
+billing-api reports a database resource problem,A database query exceeds its allowed execution time. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+portal-api cannot resolve a required hostname,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,portal-api,network,high
+identity-api cannot verify user credentials,A credential verification request fails before login completes. A production-critical operation is failing for every affected request.,identity-api,authentication,critical
+reporting-api request processing fails,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,reporting-api,application_error,low
+billing-api reports a database resource problem,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+checkout-api has connection timeout errors,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,checkout-api,network,high
+automation-api rejects valid access tokens,The multi factor authentication step cannot be completed. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+checkout-api cannot complete a customer workflow,An application dependency returns data the service cannot process. The issue affects a noncritical workflow with no data loss.,checkout-api,application_error,low
+orders-api database operation is timing out,The database cannot accept a new write from the application. The issue affects an important feature but a temporary workaround exists.,orders-api,database,medium
+notification-api cannot resolve a required hostname,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,notification-api,network,high
+identity-api cannot verify user credentials,Valid users receive an authentication failure during sign in. A production-critical operation is failing for every affected request.,identity-api,authentication,critical
+billing-api returns unexpected server errors,The service fails while processing a normal customer request. A small number of requests are affected and retrying usually succeeds.,billing-api,application_error,low
+payment-api cannot obtain a database connection,PostgreSQL has no available connections for the service. Multiple users experience delays and the affected workflow is degraded.,payment-api,database,medium
+portal-api cannot reach an upstream service,Intermittent packet loss interrupts requests to an upstream service. A large group of users cannot complete the affected workflow.,portal-api,network,high
+admin-api rejects valid access tokens,The multi factor authentication step cannot be completed. A production-critical operation is failing for every affected request.,admin-api,authentication,critical
+checkout-api returns invalid response data,A recent code path returns an invalid response to callers. The issue affects a noncritical workflow with no data loss.,checkout-api,application_error,low
+inventory-api cannot write records to PostgreSQL,A database query exceeds its allowed execution time. The service remains available but some requests fail.,inventory-api,database,medium
+checkout-api cannot reach an upstream service,DNS resolution fails for an internal service hostname. Customer requests fail repeatedly and engineer investigation is needed.,checkout-api,network,high
+identity-api has a multi factor authentication problem,Valid users receive an authentication failure during sign in. The service is unavailable for customers and there is no working workaround.,identity-api,authentication,critical
+billing-api has an exception during request handling,An application dependency returns data the service cannot process. Users can continue working after a short delay.,billing-api,application_error,low
+orders-api cannot obtain a database connection,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,orders-api,database,medium
+portal-api cannot reach an upstream service,Network requests time out before an upstream response arrives. The incident has significant business impact and requires fast action.,portal-api,network,high
+billing-api users cannot complete sign in,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,billing-api,authentication,critical
+catalog-api returns invalid response data,An application dependency returns data the service cannot process. Users can continue working after a short delay.,catalog-api,application_error,low
+inventory-api cannot obtain a database connection,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,inventory-api,database,medium
+identity-api cannot reach an upstream service,The gateway reports failed connections between services. Customer requests fail repeatedly and engineer investigation is needed.,identity-api,network,high
+identity-api cannot verify user credentials,A credential verification request fails before login completes. A production-critical operation is failing for every affected request.,identity-api,authentication,critical
+reporting-api request processing fails,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,reporting-api,application_error,low
+billing-api cannot write records to PostgreSQL,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,billing-api,database,medium
+notification-api requests fail through the API gateway,The gateway reports failed connections between services. The incident has significant business impact and requires fast action.,notification-api,network,high
+billing-api has an authentication validation error,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,billing-api,authentication,critical
+checkout-api cannot complete a customer workflow,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,checkout-api,application_error,low
+analytics-api reports a database resource problem,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,analytics-api,database,medium
+notification-api cannot resolve a required hostname,The service cannot establish a connection to its required dependency. Customer requests fail repeatedly and engineer investigation is needed.,notification-api,network,high
+portal-api rejects valid access tokens,The multi factor authentication step cannot be completed. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,authentication,critical
+catalog-api cannot complete a customer workflow,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,catalog-api,application_error,low
+billing-api cannot write records to PostgreSQL,A required database transaction is rolled back unexpectedly. Multiple users experience delays and the affected workflow is degraded.,billing-api,database,medium
+checkout-api has intermittent network failures,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,checkout-api,network,high
+automation-api cannot verify user credentials,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,automation-api,authentication,critical
+reporting-api has an exception during request handling,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,reporting-api,application_error,low
+payment-api cannot write records to PostgreSQL,A database query exceeds its allowed execution time. The issue affects an important feature but a temporary workaround exists.,payment-api,database,medium
+portal-api cannot resolve a required hostname,Intermittent packet loss interrupts requests to an upstream service. Customer requests fail repeatedly and engineer investigation is needed.,portal-api,network,high
+automation-api has a multi factor authentication problem,A service account cannot authenticate to a required dependency. The service is unavailable for customers and there is no working workaround.,automation-api,authentication,critical
+reporting-api returns invalid response data,The service fails while processing a normal customer request. The issue affects a noncritical workflow with no data loss.,reporting-api,application_error,low
+analytics-api cannot write records to PostgreSQL,The database cannot accept a new write from the application. The issue affects an important feature but a temporary workaround exists.,analytics-api,database,medium
+portal-api cannot reach an upstream service,DNS resolution fails for an internal service hostname. Customer requests fail repeatedly and engineer investigation is needed.,portal-api,network,high
+identity-api has a multi factor authentication problem,The identity provider rejects a token that should be valid. All users are blocked from a critical workflow and immediate escalation is required.,identity-api,authentication,critical
+orders-api has an exception during request handling,The service fails while processing a normal customer request. Users can continue working after a short delay.,orders-api,application_error,low
+billing-api reports a database resource problem,A required database transaction is rolled back unexpectedly. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+gateway-api has intermittent network failures,Network requests time out before an upstream response arrives. A large group of users cannot complete the affected workflow.,gateway-api,network,high
+portal-api rejects valid access tokens,A credential verification request fails before login completes. All users are blocked from a critical workflow and immediate escalation is required.,portal-api,authentication,critical
+billing-api request processing fails,The service fails while processing a normal customer request. A small number of requests are affected and retrying usually succeeds.,billing-api,application_error,low
+payment-api reports a database resource problem,The database cannot accept a new write from the application. The service remains available but some requests fail.,payment-api,database,medium
+portal-api requests fail through the API gateway,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,portal-api,network,high
+billing-api has an authentication validation error,The multi factor authentication step cannot be completed. The service is unavailable for customers and there is no working workaround.,billing-api,authentication,critical
+reporting-api cannot complete a customer workflow,A recent code path returns an invalid response to callers. A small number of requests are affected and retrying usually succeeds.,reporting-api,application_error,low
+inventory-api database operation is timing out,PostgreSQL has no available connections for the service. Multiple users experience delays and the affected workflow is degraded.,inventory-api,database,medium
+notification-api requests fail through the API gateway,The service cannot establish a connection to its required dependency. The incident has significant business impact and requires fast action.,notification-api,network,high
+identity-api rejects valid access tokens,The identity provider rejects a token that should be valid. A production-critical operation is failing for every affected request.,identity-api,authentication,critical
+catalog-api returns unexpected server errors,A recent code path returns an invalid response to callers. A small number of requests are affected and retrying usually succeeds.,catalog-api,application_error,low
+billing-api database operation is timing out,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,billing-api,database,medium
+checkout-api has intermittent network failures,Intermittent packet loss interrupts requests to an upstream service. Customer requests fail repeatedly and engineer investigation is needed.,checkout-api,network,high
+automation-api cannot verify user credentials,A credential verification request fails before login completes. A production-critical operation is failing for every affected request.,automation-api,authentication,critical
+reporting-api cannot complete a customer workflow,The service logs repeated internal errors for the same workflow. Users can continue working after a short delay.,reporting-api,application_error,low
+payment-api reports a database resource problem,PostgreSQL has no available connections for the service. Multiple users experience delays and the affected workflow is degraded.,payment-api,database,medium
+portal-api cannot resolve a required hostname,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,portal-api,network,high
+admin-api rejects valid access tokens,A service account cannot authenticate to a required dependency. All users are blocked from a critical workflow and immediate escalation is required.,admin-api,authentication,critical
+orders-api returns unexpected server errors,An application dependency returns data the service cannot process. The issue affects a noncritical workflow with no data loss.,orders-api,application_error,low
+billing-api database operation is timing out,The database cannot accept a new write from the application. Multiple users experience delays and the affected workflow is degraded.,billing-api,database,medium
+portal-api cannot resolve a required hostname,Network requests time out before an upstream response arrives. The incident has significant business impact and requires fast action.,portal-api,network,high
+automation-api users cannot complete sign in,The identity provider rejects a token that should be valid. The service is unavailable for customers and there is no working workaround.,automation-api,authentication,critical
+billing-api request processing fails,An application dependency returns data the service cannot process. A small number of requests are affected and retrying usually succeeds.,billing-api,application_error,low
+billing-api database queries are failing,A database query exceeds its allowed execution time. The issue affects an important feature but a temporary workaround exists.,billing-api,database,medium
+portal-api cannot reach an upstream service,The service cannot establish a connection to its required dependency. A large group of users cannot complete the affected workflow.,portal-api,network,high
+portal-api has a multi factor authentication problem,A service account cannot authenticate to a required dependency. The service is unavailable for customers and there is no working workaround.,portal-api,authentication,critical
+reporting-api returns unexpected server errors,An application dependency returns data the service cannot process. Users can continue working after a short delay.,reporting-api,application_error,low
+inventory-api database operation is timing out,The database cannot accept a new write from the application. The service remains available but some requests fail.,inventory-api,database,medium
+checkout-api requests fail through the API gateway,The gateway reports failed connections between services. A large group of users cannot complete the affected workflow.,checkout-api,network,high
+billing-api users cannot complete sign in,The multi factor authentication step cannot be completed. A production-critical operation is failing for every affected request.,billing-api,authentication,critical
+catalog-api returns invalid response data,The service fails while processing a normal customer request. A small number of requests are affected and retrying usually succeeds.,catalog-api,application_error,low
+payment-api database queries are failing,A required database transaction is rolled back unexpectedly. The service remains available but some requests fail.,payment-api,database,medium
+gateway-api cannot resolve a required hostname,Intermittent packet loss interrupts requests to an upstream service. A large group of users cannot complete the affected workflow.,gateway-api,network,high
+admin-api cannot verify user credentials,A service account cannot authenticate to a required dependency. A production-critical operation is failing for every affected request.,admin-api,authentication,critical
+reporting-api cannot complete a customer workflow,A recent code path returns an invalid response to callers. Users can continue working after a short delay.,reporting-api,application_error,low
+analytics-api database operation is timing out,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,analytics-api,database,medium
+identity-api requests fail through the API gateway,Network requests time out before an upstream response arrives. Customer requests fail repeatedly and engineer investigation is needed.,identity-api,network,high
+identity-api rejects valid access tokens,A credential verification request fails before login completes. The service is unavailable for customers and there is no working workaround.,identity-api,authentication,critical
+reporting-api cannot complete a customer workflow,An application dependency returns data the service cannot process. Users can continue working after a short delay.,reporting-api,application_error,low
+payment-api database operation is timing out,PostgreSQL has no available connections for the service. The issue affects an important feature but a temporary workaround exists.,payment-api,database,medium
+identity-api cannot resolve a required hostname,The service cannot establish a connection to its required dependency. Customer requests fail repeatedly and engineer investigation is needed.,identity-api,network,high
+billing-api users cannot complete sign in,A service account cannot authenticate to a required dependency. The service is unavailable for customers and there is no working workaround.,billing-api,authentication,critical
+reporting-api returns unexpected server errors,A recent code path returns an invalid response to callers. Users can continue working after a short delay.,reporting-api,application_error,low
+inventory-api reports a database resource problem,The connection pool is exhausted during normal traffic. The service remains available but some requests fail.,inventory-api,database,medium
+notification-api cannot reach an upstream service,DNS resolution fails for an internal service hostname. Customer requests fail repeatedly and engineer investigation is needed.,notification-api,network,high
+billing-api rejects valid access tokens,A credential verification request fails before login completes. The service is unavailable for customers and there is no working workaround.,billing-api,authentication,critical

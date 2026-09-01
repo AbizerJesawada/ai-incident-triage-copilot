@@ -1,4 +1,5 @@
 import csv
+import os
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 
 
-DATASET_PATH = Path("/data/incidents_training.csv")
+DATASET_PATH = Path(
+    os.getenv(
+        "TRAINING_DATASET_PATH",
+        "/data/incidents_training.csv",
+    )
+)
 ARTIFACTS_DIR = Path("/app/artifacts")
 FEEDBACK_DATASET_PATH = (
     ARTIFACTS_DIR / "engineer_feedback_training.csv"
