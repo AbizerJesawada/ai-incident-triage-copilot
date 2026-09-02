@@ -529,6 +529,15 @@
 
         <div class="detail-reason">
           <span class="detail-label">
+            Similar past incidents
+          </span>
+          <p class="detail-text" id="similar-incidents">
+            Loading similar incidents...
+          </p>
+        </div>
+
+        <div class="detail-reason">
+          <span class="detail-label">
             Suspected change events
           </span>
           <p class="detail-text" id="correlation-evidence">
@@ -550,6 +559,10 @@
     async function loadIncidentInvestigation(incident) {
       renderIncidentDetail(incident);
 
+      const similarElement = document.getElementById(
+        "similar-incidents"
+      );
+
       const correlationElement = document.getElementById(
         "correlation-evidence"
       );
@@ -559,20 +572,53 @@
       );
 
       try {
-        const [correlationResponse, recommendationResponse] =
-          await Promise.all([
-            fetch(
-              `/incidents/${incident.id}/correlation-timeline`
-            ),
-            fetch(
-              `/incidents/${incident.id}/recommendations`
-            ),
-          ]);
+        const [
+          similarResponse,
+          correlationResponse,
+          recommendationResponse,
+        ] = await Promise.all([
+          fetch(`/incidents/${incident.id}/similar`),
+          fetch(
+            `/incidents/${incident.id}/correlation-timeline`
+          ),
+          fetch(
+            `/incidents/${incident.id}/recommendations`
+          ),
+        ]);
+
+        if (
+          !similarResponse.ok
+          || !correlationResponse.ok
+          || !recommendationResponse.ok
+        ) {
+          throw new Error("Could not load incident details.");
+        }
+
+        const similarIncidents =
+          await similarResponse.json();
 
         const correlations = await correlationResponse.json();
 
         const recommendations =
           await recommendationResponse.json();
+
+        if (similarIncidents.length) {
+          similarElement.textContent = similarIncidents.map(
+            (similarIncident) => {
+              const similarityPercent = Math.round(
+                similarIncident.similarity_score * 100
+              );
+
+              return `${similarIncident.title} `
+                + `(${similarityPercent}% similar, `
+                + `${similarIncident.predicted_severity || "unknown"} `
+                + `severity, ${similarIncident.status})`;
+            }
+          ).join(" | ");
+        } else {
+          similarElement.textContent =
+            "No similar past incidents found.";
+        }
 
         if (correlations.length) {
           const strongest = correlations[0];
@@ -599,6 +645,9 @@
             "No remediation recommendation saved.";
         }
       } catch (error) {
+        similarElement.textContent =
+          "Could not load similar incidents.";
+
         correlationElement.textContent =
           "Could not load correlation evidence.";
 

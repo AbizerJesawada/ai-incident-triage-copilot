@@ -428,3 +428,19 @@ The API updates SLA status whenever incidents are listed:
 
 ```text
 GET /incidents
+
+## Day 22: Similar Incident Search
+
+The project can now find older incidents that are similar to a selected incident.
+
+The similarity feature uses TF-IDF text vectors and cosine similarity:
+
+1. It combines the incident title and description.
+2. It converts important words into numeric vectors.
+3. It compares the selected incident with all other incidents.
+4. It returns the three highest-scoring matches.
+
+API endpoint:
+
+```text
+GET /incidents/{incident_id}/similar

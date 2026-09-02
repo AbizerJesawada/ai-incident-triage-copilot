@@ -11,29 +11,32 @@ from time import perf_counter
 from app.database import Base, engine, get_db
 from app.escalation_router import route_incident
 from app.ml_classifier import get_model_metadata, predict_incident
+
 from app.models import (ChangeEvent, EngineerNotification, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,LLMGenerationLog,)
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
+    EngineerNotificationResponse,
+    FeedbackTrainingExample,
+    IncidentBriefingResponse,
+    IncidentChangeCorrelationResponse,
     IncidentClassificationRequest,
     IncidentClassificationResponse,
+    IncidentCorrelationTimelineItem,
     IncidentCreate,
     IncidentResponse,
     IncidentReviewCreate,
     IncidentReviewResponse,
     IncidentRoutingResponse,
     IncidentUpdate,
-    FeedbackTrainingExample,
-    IncidentChangeCorrelationResponse,
-    IncidentCorrelationTimelineItem,
-    RootCauseHypothesisResponse,
-    RemediationRecommendationResponse,
-    RemediationRecommendationReview,
-    IncidentBriefingResponse,
     LLMGenerationLogResponse,
     LLMGenerationSummaryResponse,
-    EngineerNotificationResponse,
+    RemediationRecommendationResponse,
+    RemediationRecommendationReview,
+    RootCauseHypothesisResponse,
+    SimilarIncidentResponse,
 )
+
 from app.correlation_service import (
     refresh_incident_change_correlations,
     build_root_cause_hypothesis,
@@ -58,6 +61,7 @@ from app.slack_event_service import (
     acknowledge_eyes_reaction,
     is_valid_slack_request,
 )
+from app.similar_incident_service import find_similar_incidents
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -226,6 +230,51 @@ def list_sla_breaches(
         incident
         for incident in incidents
         if incident.sla_status == "breached"
+    ]
+
+
+@app.get(
+    "/incidents/{incident_id}/similar",
+    response_model=list[SimilarIncidentResponse],
+)
+def list_similar_incidents(
+    incident_id: UUID,
+    db: Session = Depends(get_db),
+) -> list[SimilarIncidentResponse]:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    candidates = list(
+        db.scalars(
+            select(Incident).where(
+                Incident.id != incident.id,
+            )
+        ).all()
+    )
+
+    matches = find_similar_incidents(
+        target_title=incident.title,
+        target_description=incident.description,
+        candidate_incidents=candidates,
+    )
+
+    return [
+        SimilarIncidentResponse(
+            id=match.id,
+            title=match.title,
+            service_name=match.service_name,
+            status=match.status,
+            predicted_category=match.predicted_category,
+            predicted_severity=match.predicted_severity,
+            similarity_score=round(score, 4),
+            created_at=match.created_at,
+        )
+        for match, score in matches
     ]
 
 

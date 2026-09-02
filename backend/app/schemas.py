@@ -86,6 +86,16 @@ class IncidentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class SimilarIncidentResponse(BaseModel):
+    id: UUID
+    title: str
+    service_name: str
+    status: IncidentStatus
+    predicted_category: str | None
+    predicted_severity: Severity | None
+    similarity_score: float
+    created_at: datetime
+
 
 class IncidentUpdate(BaseModel):
     severity: Severity | None = None
