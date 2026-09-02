@@ -81,6 +81,8 @@ class IncidentResponse(BaseModel):
     human_review_required: bool
     triage_reason: str | None
     triaged_at: datetime | None
+    sla_due_at: datetime | None
+    sla_status: str
     created_at: datetime
     updated_at: datetime
 

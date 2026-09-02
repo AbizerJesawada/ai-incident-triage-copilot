@@ -39,6 +39,10 @@ from app.correlation_service import (
     build_root_cause_hypothesis,
 )
 from app.services import find_related_change_events
+from app.sla_service import (
+    calculate_sla_due_at,
+    calculate_sla_status,
+)
 from app.triage_service import triage_incident
 from app.remediation_service import (
     generate_remediation_recommendations,
@@ -102,10 +106,13 @@ def create_incident(
             detail=str(error),
         ) from error
 
+    predicted_severity = str(triage["predicted_severity"])
+    triaged_at = triage["triaged_at"]
+
     incident = Incident(
         **incident_data.model_dump(),
         predicted_category=str(triage["predicted_category"]),
-        predicted_severity=str(triage["predicted_severity"]),
+        predicted_severity=predicted_severity,
         category_confidence=float(
             triage["category_confidence"],
         ),
@@ -118,7 +125,12 @@ def create_incident(
             triage["human_review_required"],
         ),
         triage_reason=str(triage["reason"]),
-        triaged_at=triage["triaged_at"],
+        triaged_at=triaged_at,
+        sla_due_at=calculate_sla_due_at(
+            predicted_severity=predicted_severity,
+            started_at=triaged_at,
+        ),
+        sla_status="on_track",
     )
 
     db.add(incident)
@@ -171,7 +183,50 @@ def list_incidents(
         Incident.created_at.desc(),
     ).limit(limit)
 
-    return list(db.scalars(statement).all())
+    incidents = list(db.scalars(statement).all())
+
+    for incident in incidents:
+        incident.sla_status = calculate_sla_status(
+            sla_due_at=incident.sla_due_at,
+            predicted_severity=(
+                incident.predicted_severity or "medium"
+            ),
+        )
+
+    db.commit()
+
+    return incidents
+
+@app.get(
+    "/incidents/sla/breached",
+    response_model=list[IncidentResponse],
+)
+def list_sla_breaches(
+    db: Session = Depends(get_db),
+) -> list[Incident]:
+    incidents = list(
+        db.scalars(
+            select(Incident).where(
+                Incident.sla_due_at.is_not(None),
+            )
+        ).all()
+    )
+
+    for incident in incidents:
+        incident.sla_status = calculate_sla_status(
+            sla_due_at=incident.sla_due_at,
+            predicted_severity=(
+                incident.predicted_severity or "medium"
+            ),
+        )
+
+    db.commit()
+
+    return [
+        incident
+        for incident in incidents
+        if incident.sla_status == "breached"
+    ]
 
 
 @app.get(
@@ -378,12 +433,13 @@ def retriage_incident(
             detail=str(error),
         ) from error
 
+    predicted_severity = str(triage["predicted_severity"])
+    triaged_at = triage["triaged_at"]
+
     incident.predicted_category = str(
         triage["predicted_category"],
     )
-    incident.predicted_severity = str(
-        triage["predicted_severity"],
-    )
+    incident.predicted_severity = predicted_severity
     incident.category_confidence = float(
         triage["category_confidence"],
     )
@@ -396,9 +452,12 @@ def retriage_incident(
         triage["human_review_required"],
     )
     incident.triage_reason = str(triage["reason"])
-    incident.triaged_at = triage["triaged_at"]
-
-    incident.triaged_at = triage["triaged_at"]
+    incident.triaged_at = triaged_at
+    incident.sla_due_at = calculate_sla_due_at(
+        predicted_severity=predicted_severity,
+        started_at=triaged_at,
+    )
+    incident.sla_status = "on_track"
 
     db.commit()
     db.refresh(incident)

@@ -407,3 +407,24 @@ A critical phrase overrides an unsafe lower ML prediction:
 ML prediction: medium
 Guardrail result: critical
 Route: critical_escalation
+
+## Day 21: Incident SLA Tracking
+
+The project now assigns an SLA deadline to every newly triaged incident.
+
+| Predicted severity | SLA deadline |
+| --- | --- |
+| Critical | 15 minutes |
+| High | 1 hour |
+| Medium | 4 hours |
+| Low | 24 hours |
+
+Each incident stores:
+
+- `sla_due_at`: the deadline for handling the incident.
+- `sla_status`: `on_track`, `at_risk`, or `breached`.
+
+The API updates SLA status whenever incidents are listed:
+
+```text
+GET /incidents

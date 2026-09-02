@@ -17,6 +17,7 @@
       --blue: #1463a5;
       --red: #b42318;
       --orange: #b54708;
+      --green: #087443;
     }
 
     * {
@@ -83,7 +84,7 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 16px;
       margin-bottom: 28px;
     }
@@ -197,14 +198,21 @@
       color: var(--blue);
     }
 
-    .badge-review {
+    .badge-review,
+    .badge-sla-breached {
       background: #fdecec;
       color: var(--red);
     }
 
-    .badge-high {
+    .badge-high,
+    .badge-sla-at-risk {
       background: #fff1e6;
       color: var(--orange);
+    }
+
+    .badge-sla-on-track {
+      background: #e5f6ed;
+      color: var(--green);
     }
 
     #incident-detail-panel {
@@ -252,6 +260,12 @@
 
     .error {
       color: var(--red);
+    }
+
+    @media (max-width: 1050px) {
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 850px) {
@@ -306,6 +320,16 @@
         <strong
           class="metric-value metric-danger"
           id="critical-count"
+        >
+          -
+        </strong>
+      </article>
+
+      <article class="metric">
+        <span class="metric-label">SLA breaches</span>
+        <strong
+          class="metric-value metric-danger"
+          id="sla-breach-count"
         >
           -
         </strong>
@@ -373,6 +397,10 @@
     }
 
     function formatDate(value) {
+      if (!value) {
+        return "Not available";
+      }
+
       return new Date(value).toLocaleString();
     }
 
@@ -382,6 +410,26 @@
       }
 
       return `${Math.round(value * 100)}%`;
+    }
+
+    function formatSlaStatus(value) {
+      if (!value) {
+        return "On track";
+      }
+
+      return value.replace("_", " ");
+    }
+
+    function slaBadgeClass(value) {
+      if (value === "breached") {
+        return "badge-sla-breached";
+      }
+
+      if (value === "at_risk") {
+        return "badge-sla-at-risk";
+      }
+
+      return "badge-sla-on-track";
     }
 
     function renderIncidentDetail(incident) {
@@ -450,6 +498,22 @@
               ${escapeHtml(
                 incident.triage_route || "Not available"
               )}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">SLA status</span>
+            <span class="detail-value">
+              ${escapeHtml(
+                formatSlaStatus(incident.sla_status)
+              )}
+            </span>
+          </div>
+
+          <div>
+            <span class="detail-label">SLA due at</span>
+            <span class="detail-value">
+              ${formatDate(incident.sla_due_at)}
             </span>
           </div>
         </div>
@@ -580,6 +644,14 @@
                   )}
                 </span>
 
+                <span class="badge ${
+                  slaBadgeClass(incident.sla_status)
+                }">
+                  SLA: ${escapeHtml(
+                    formatSlaStatus(incident.sla_status)
+                  )}
+                </span>
+
                 ${escapeHtml(incident.service_name)}
                 · ${formatDate(incident.created_at)}
               </p>
@@ -677,6 +749,11 @@
           openIncidents.filter(
             (incident) =>
               incident.predicted_severity === "critical"
+          ).length;
+
+        document.getElementById("sla-breach-count").textContent =
+          openIncidents.filter(
+            (incident) => incident.sla_status === "breached"
           ).length;
 
         document.getElementById("notification-count").textContent =

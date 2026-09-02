@@ -67,6 +67,14 @@ class Incident(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    sla_due_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    sla_status: Mapped[str] = mapped_column(
+        String(20),
+        default="on_track",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
