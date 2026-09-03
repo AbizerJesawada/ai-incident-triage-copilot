@@ -1,18 +1,49 @@
 import json
-from pathlib import Path
 from contextlib import asynccontextmanager
-from uuid import UUID
 from datetime import datetime, timezone
-from fastapi import Depends, FastAPI, HTTPException, Query, status, Request
+from pathlib import Path
+from time import perf_counter
+from uuid import UUID
+
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from time import perf_counter
+
+from app.correlation_service import (
+    build_root_cause_hypothesis,
+    refresh_incident_change_correlations,
+)
 from app.database import Base, engine, get_db
 from app.escalation_router import route_incident
+from app.llm_service import (
+    generate_incident_briefing,
+    validate_briefing_evidence,
+)
 from app.ml_classifier import get_model_metadata, predict_incident
-
-from app.models import (ChangeEvent, EngineerNotification, Incident, IncidentReview, IncidentChangeCorrelation,RemediationRecommendation,LLMGenerationLog,)
+from app.models import (
+    ChangeEvent,
+    EngineerNotification,
+    Incident,
+    IncidentChangeCorrelation,
+    IncidentReview,
+    LLMGenerationLog,
+    RemediationRecommendation,
+)
+from app.notification_service import (
+    create_review_notification_if_needed,
+)
+from app.remediation_service import (
+    generate_remediation_recommendations,
+)
 from app.schemas import (
     ChangeEventCreate,
     ChangeEventResponse,
@@ -36,34 +67,21 @@ from app.schemas import (
     RootCauseHypothesisResponse,
     SimilarIncidentResponse,
 )
-
-from app.correlation_service import (
-    refresh_incident_change_correlations,
-    build_root_cause_hypothesis,
-)
 from app.services import find_related_change_events
+from app.similar_incident_service import find_similar_incidents
 from app.sla_service import (
     calculate_sla_due_at,
     calculate_sla_status,
-)
-from app.triage_service import triage_incident
-from app.remediation_service import (
-    generate_remediation_recommendations,
-)
-from app.llm_service import (
-    generate_incident_briefing,
-    validate_briefing_evidence,
-)
-from app.notification_service import (
-    create_review_notification_if_needed,
 )
 from app.slack_event_service import (
     acknowledge_eyes_reaction,
     is_valid_slack_request,
 )
-from app.similar_incident_service import find_similar_incidents
+from app.triage_service import triage_incident
+
 
 STATIC_DIR = Path(__file__).parent / "static"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -74,6 +92,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Incident Triage and Resolution Copilot API",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

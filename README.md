@@ -444,3 +444,12 @@ API endpoint:
 
 ```text
 GET /incidents/{incident_id}/similar
+
+## Day 23: React User Incident Reporting
+
+A separate React frontend now lives in `frontend/`.
+
+It provides a user-facing incident report form that submits to:
+
+```text
+POST /incidents

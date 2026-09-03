@@ -1,0 +1,189 @@
+.app-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 64px 28px 80px;
+}
+
+.intro {
+  max-width: 680px;
+  margin-bottom: 40px;
+}
+
+.product-name,
+.success-label {
+  margin: 0 0 12px;
+  color: #087b71;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  margin: 0;
+  color: #16202a;
+  font-size: 40px;
+  line-height: 1.1;
+}
+
+.intro-copy {
+  max-width: 600px;
+  margin: 16px 0 0;
+  color: #52616d;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.report-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.report-form {
+  display: grid;
+  gap: 12px;
+  padding: 32px;
+  border: 1px solid #d8e0e5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgb(27 43 54 / 8%);
+}
+
+.form-heading {
+  margin-bottom: 12px;
+}
+
+.form-heading h2,
+.help-panel h2,
+.success-panel h2 {
+  margin: 0;
+  color: #16202a;
+  font-size: 20px;
+}
+
+.form-heading p {
+  margin: 8px 0 0;
+  color: #62717e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+label {
+  margin-top: 8px;
+  color: #263542;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #b9c7d0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #16202a;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+  padding: 12px 14px;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #087b71;
+  box-shadow: 0 0 0 3px rgb(8 123 113 / 16%);
+}
+
+textarea {
+  min-height: 150px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.submit-button {
+  min-height: 46px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 6px;
+  background: #087b71;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 18px;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #056057;
+}
+
+.submit-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.help-panel {
+  border-left: 3px solid #e57a44;
+  background: #fff8f3;
+  padding: 24px;
+}
+
+.help-panel ol {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0 0;
+  padding-left: 22px;
+  color: #52616d;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.success-panel {
+  margin-top: 32px;
+  border-left: 3px solid #087b71;
+  background: #ecf8f5;
+  padding: 24px;
+}
+
+.success-panel p {
+  margin: 10px 0 0;
+  color: #40515e;
+  line-height: 1.55;
+}
+
+.success-panel code {
+  overflow-wrap: anywhere;
+  color: #16202a;
+  font-size: 13px;
+}
+
+.form-message {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.error-message {
+  color: #b42318;
+}
+
+@media (max-width: 800px) {
+  .app-shell {
+    padding: 40px 18px 60px;
+  }
+
+  .intro h1 {
+    font-size: 32px;
+  }
+
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .report-form {
+    padding: 24px 20px;
+  }
+}
