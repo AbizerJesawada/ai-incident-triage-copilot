@@ -56,6 +56,7 @@ from app.schemas import (
     IncidentCorrelationTimelineItem,
     IncidentCreate,
     IncidentResponse,
+    IncidentResolutionCreate,
     IncidentReviewCreate,
     IncidentReviewResponse,
     IncidentRoutingResponse,
@@ -219,12 +220,16 @@ def list_incidents(
     incidents = list(db.scalars(statement).all())
 
     for incident in incidents:
-        incident.sla_status = calculate_sla_status(
-            sla_due_at=incident.sla_due_at,
-            predicted_severity=(
-                incident.predicted_severity or "medium"
-            ),
-        )
+        if incident.status == "resolved":
+            incident.sla_status = "resolved"
+            continue
+
+    incident.sla_status = calculate_sla_status(
+        sla_due_at=incident.sla_due_at,
+        predicted_severity=(
+            incident.predicted_severity or "medium"
+        ),
+    )
 
     db.commit()
 
@@ -240,6 +245,7 @@ def list_sla_breaches(
     incidents = list(
         db.scalars(
             select(Incident).where(
+                Incident.status != "resolved",
                 Incident.sla_due_at.is_not(None),
             )
         ).all()
@@ -260,6 +266,41 @@ def list_sla_breaches(
         for incident in incidents
         if incident.sla_status == "breached"
     ]
+
+
+@app.post(
+    "/incidents/{incident_id}/resolve",
+    response_model=IncidentResponse,
+)
+def resolve_incident(
+    incident_id: UUID,
+    resolution_data: IncidentResolutionCreate,
+    db: Session = Depends(get_db),
+) -> Incident:
+    incident = db.get(Incident, incident_id)
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found.",
+        )
+
+    if incident.status == "resolved":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Incident is already resolved.",
+        )
+
+    incident.status = "resolved"
+    incident.resolved_by = resolution_data.resolved_by
+    incident.resolution_note = resolution_data.resolution_note
+    incident.resolved_at = datetime.now(timezone.utc)
+    incident.sla_status = "resolved"
+
+    db.commit()
+    db.refresh(incident)
+
+    return incident
 
 
 @app.get(

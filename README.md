@@ -453,3 +453,100 @@ It provides a user-facing incident report form that submits to:
 
 ```text
 POST /incidents
+
+## Day 24: Engineer Workspace
+
+The React frontend now includes an Engineer Workspace.
+
+Engineers can:
+
+- load real incidents from the API
+- search by incident title, description, or service
+- filter by status, predicted severity, service, and SLA state
+- select an incident to view its details
+- review similar past incidents, change evidence, and remediation recommendations
+
+Run the frontend locally:
+
+```bash
+cd frontend
+npm run dev
+
+
+## Day 25: Incident Resolution Workflow
+
+Engineers can now close incidents after the service is fixed. Resolution details are stored in PostgreSQL and displayed in the React Engineer Workspace.
+
+### Resolution Data
+
+Each resolved incident stores:
+
+| Field | Purpose |
+| --- | --- |
+| `resolved_by` | Name of the engineer who resolved the incident |
+| `resolution_note` | Explanation of the fix and recovery verification |
+| `resolved_at` | UTC timestamp when the incident was resolved |
+
+Database migration:
+
+```text
+backend/migrations/011_add_incident_resolution_fields.sql
+```
+
+### Resolution API
+
+```text
+POST /incidents/{incident_id}/resolve
+```
+
+Example request body:
+
+```json
+{
+  "resolved_by": "Abizer",
+  "resolution_note": "Restarted the affected service and verified successful customer requests."
+}
+```
+
+When the request succeeds, the system:
+
+1. Changes the incident status from `open` to `resolved`.
+2. Stores the engineer name, resolution note, and resolution timestamp.
+3. Changes `sla_status` to `resolved`.
+4. Stops the SLA timer from changing the incident back to `at_risk` or `breached`.
+5. Excludes the resolved incident from `GET /incidents/sla/breached`.
+6. Blocks a second resolution attempt with HTTP `409 Conflict`.
+
+### React Engineer Workspace
+
+The React frontend provides an Engineer Workspace where an engineer can:
+
+- Search and filter incidents.
+- Select an incident and inspect its triage details.
+- Review SLA status, similar incidents, change evidence, and recommendations.
+- Resolve an open incident without manually calling the API.
+- View the saved resolution record for a resolved incident.
+
+### Verification
+
+Run backend tests:
+
+```bash
+docker compose run --rm backend pytest tests -v
+```
+
+Run frontend checks:
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+Current verification result:
+
+```text
+16 backend tests passed
+Frontend lint passed
+Frontend production build passed
+```

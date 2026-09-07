@@ -1,26 +1,149 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
+import {
+  createIncident,
+  getCorrelationTimeline,
+  getIncidents,
+  getRecommendations,
+  getSimilarIncidents,
+  resolveIncident,
+} from "./api";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-  || "http://localhost:8000";
-
-const initialForm = {
+const initialReportForm = {
   title: "",
   description: "",
   service_name: "",
   source: "user_report",
 };
 
-function App() {
-  const [formData, setFormData] = useState(initialForm);
-  const [submissionState, setSubmissionState] = useState("idle");
-  const [submittedIncident, setSubmittedIncident] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
+const initialResolutionForm = {
+  resolved_by: "",
+  resolution_note: "",
+};
 
-  function updateField(event) {
+function formatDate(value) {
+  if (!value) {
+    return "Not available";
+  }
+
+  return new Date(value).toLocaleString();
+}
+
+function formatSlaStatus(value) {
+  return (value || "on_track").replace("_", " ");
+}
+
+function App() {
+  const [activeView, setActiveView] = useState("report");
+  const [reportForm, setReportForm] = useState(
+    initialReportForm,
+  );
+  const [reportState, setReportState] = useState("idle");
+  const [reportError, setReportError] = useState("");
+  const [submittedIncident, setSubmittedIncident] = useState(
+    null,
+  );
+
+  const [incidents, setIncidents] = useState([]);
+  const [workspaceState, setWorkspaceState] = useState("idle");
+  const [workspaceError, setWorkspaceError] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [serviceFilter, setServiceFilter] = useState("all");
+  const [slaFilter, setSlaFilter] = useState("all");
+
+  const [selectedIncident, setSelectedIncident] = useState(null);
+  const [detailsState, setDetailsState] = useState("idle");
+  const [similarIncidents, setSimilarIncidents] = useState([]);
+  const [correlations, setCorrelations] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+
+  const [resolutionForm, setResolutionForm] = useState(
+    initialResolutionForm,
+  );
+  const [resolutionState, setResolutionState] = useState("idle");
+  const [resolutionError, setResolutionError] = useState("");
+
+  async function loadIncidents() {
+    setWorkspaceState("loading");
+    setWorkspaceError("");
+
+    try {
+      const loadedIncidents = await getIncidents();
+
+      setIncidents(loadedIncidents);
+      setWorkspaceState("ready");
+    } catch (error) {
+      setWorkspaceError(error.message);
+      setWorkspaceState("error");
+    }
+  }
+
+  const serviceOptions = useMemo(() => {
+    return [...new Set(
+      incidents.map((incident) => incident.service_name),
+    )].sort();
+  }, [incidents]);
+
+  const filteredIncidents = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase();
+
+    return incidents.filter((incident) => {
+      const incidentText = [
+        incident.title,
+        incident.description,
+        incident.service_name,
+      ].join(" ").toLowerCase();
+
+      const matchesSearch = !normalizedSearch
+        || incidentText.includes(normalizedSearch);
+
+      const matchesStatus = statusFilter === "all"
+        || incident.status === statusFilter;
+
+      const matchesSeverity = severityFilter === "all"
+        || (
+          incident.predicted_severity
+          || incident.severity
+        ) === severityFilter;
+
+      const matchesService = serviceFilter === "all"
+        || incident.service_name === serviceFilter;
+
+      const matchesSla = slaFilter === "all"
+        || incident.sla_status === slaFilter;
+
+      return (
+        matchesSearch
+        && matchesStatus
+        && matchesSeverity
+        && matchesService
+        && matchesSla
+      );
+    });
+  }, [
+    incidents,
+    searchText,
+    statusFilter,
+    severityFilter,
+    serviceFilter,
+    slaFilter,
+  ]);
+
+  function updateReportField(event) {
     const { name, value } = event.target;
 
-    setFormData((currentForm) => ({
+    setReportForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  }
+
+  function updateResolutionField(event) {
+    const { name, value } = event.target;
+
+    setResolutionForm((currentForm) => ({
       ...currentForm,
       [name]: value,
     }));
@@ -29,161 +152,612 @@ function App() {
   async function submitIncident(event) {
     event.preventDefault();
 
-    setSubmissionState("submitting");
+    setReportState("submitting");
+    setReportError("");
     setSubmittedIncident(null);
-    setErrorMessage("");
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/incidents`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...formData,
-            severity: "unknown",
-            status: "open",
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          "We could not submit your incident. Please try again.",
-        );
-      }
-
-      const incident = await response.json();
+      const incident = await createIncident({
+        ...reportForm,
+        severity: "unknown",
+        status: "open",
+      });
 
       setSubmittedIncident(incident);
-      setFormData(initialForm);
-      setSubmissionState("success");
+      setReportForm(initialReportForm);
+      setReportState("success");
     } catch (error) {
-      setErrorMessage(error.message);
-      setSubmissionState("error");
+      setReportError(error.message);
+      setReportState("error");
     }
   }
 
-  const isSubmitting = submissionState === "submitting";
+  async function selectIncident(incident) {
+    setSelectedIncident(incident);
+    setResolutionForm(initialResolutionForm);
+    setResolutionState("idle");
+    setResolutionError("");
+    setDetailsState("loading");
+
+    try {
+      const [
+        similar,
+        correlationTimeline,
+        remediationRecommendations,
+      ] = await Promise.all([
+        getSimilarIncidents(incident.id),
+        getCorrelationTimeline(incident.id),
+        getRecommendations(incident.id),
+      ]);
+
+      setSimilarIncidents(similar);
+      setCorrelations(correlationTimeline);
+      setRecommendations(remediationRecommendations);
+      setDetailsState("ready");
+    } catch {
+      setDetailsState("error");
+    }
+  }
+
+  async function submitResolution(event) {
+    event.preventDefault();
+
+    if (!selectedIncident) {
+      return;
+    }
+
+    setResolutionState("submitting");
+    setResolutionError("");
+
+    try {
+      const resolvedIncident = await resolveIncident(
+        selectedIncident.id,
+        resolutionForm,
+      );
+
+      setSelectedIncident(resolvedIncident);
+      setIncidents((currentIncidents) => {
+        return currentIncidents.map((incident) => {
+          return incident.id === resolvedIncident.id
+            ? resolvedIncident
+            : incident;
+        });
+      });
+      setResolutionForm(initialResolutionForm);
+      setResolutionState("success");
+    } catch (error) {
+      setResolutionError(error.message);
+      setResolutionState("error");
+    }
+  }
+
+  function openWorkspace() {
+    setActiveView("workspace");
+    loadIncidents();
+  }
 
   return (
     <main className="app-shell">
-      <section className="intro">
-        <p className="product-name">
-          AI Incident Triage Copilot
-        </p>
-        <h1>Report an issue</h1>
-        <p className="intro-copy">
-          Tell us what is not working. The incident will be
-          analyzed and sent to the engineering team when needed.
-        </p>
-      </section>
+      <header className="topbar">
+        <div>
+          <p className="product-name">
+            AI Incident Triage Copilot
+          </p>
+          <h1>Incident operations</h1>
+        </div>
 
-      <section className="report-layout">
-        <form
-          className="report-form"
-          onSubmit={submitIncident}
-        >
-          <div className="form-heading">
-            <h2>Issue details</h2>
+        <nav className="view-tabs" aria-label="Application views">
+          <button
+            className={
+              activeView === "report"
+                ? "tab-button tab-active"
+                : "tab-button"
+            }
+            type="button"
+            onClick={() => setActiveView("report")}
+          >
+            Report issue
+          </button>
+          <button
+            className={
+              activeView === "workspace"
+                ? "tab-button tab-active"
+                : "tab-button"
+            }
+            type="button"
+            onClick={openWorkspace}
+          >
+            Engineer workspace
+          </button>
+        </nav>
+      </header>
+
+      {activeView === "report" && (
+        <section className="report-page">
+          <div className="report-intro">
+            <p className="eyebrow">For users</p>
+            <h2>Report an issue</h2>
             <p>
-              Include the affected service and what you observed.
+              Describe what is not working. The system records
+              your report, triages it, and notifies engineers
+              when review is needed.
             </p>
           </div>
 
-          <label htmlFor="title">
-            Issue title
-          </label>
-          <input
-            id="title"
-            name="title"
-            type="text"
-            value={formData.title}
-            onChange={updateField}
-            placeholder="Example: Unable to complete checkout"
-            minLength="5"
-            maxLength="200"
-            required
-          />
+          <div className="report-layout">
+            <form
+              className="report-form"
+              onSubmit={submitIncident}
+            >
+              <label htmlFor="title">Issue title</label>
+              <input
+                id="title"
+                name="title"
+                type="text"
+                value={reportForm.title}
+                onChange={updateReportField}
+                placeholder="Unable to complete checkout"
+                minLength="5"
+                maxLength="200"
+                required
+              />
 
-          <label htmlFor="service_name">
-            Affected service
-          </label>
-          <input
-            id="service_name"
-            name="service_name"
-            type="text"
-            value={formData.service_name}
-            onChange={updateField}
-            placeholder="Example: payment-api"
-            minLength="2"
-            maxLength="100"
-            required
-          />
+              <label htmlFor="service_name">
+                Affected service
+              </label>
+              <input
+                id="service_name"
+                name="service_name"
+                type="text"
+                value={reportForm.service_name}
+                onChange={updateReportField}
+                placeholder="payment-api"
+                minLength="2"
+                maxLength="100"
+                required
+              />
 
-          <label htmlFor="description">
-            What happened?
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={updateField}
-            placeholder={
-              "Describe what you were doing, what you expected, "
-              + "and what happened instead."
-            }
-            minLength="10"
-            required
-          />
+              <label htmlFor="description">
+                What happened?
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                value={reportForm.description}
+                onChange={updateReportField}
+                placeholder={
+                  "Describe what you expected and what "
+                  + "happened instead."
+                }
+                minLength="10"
+                required
+              />
 
-          <button
-            className="submit-button"
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting
-              ? "Submitting..."
-              : "Submit incident"}
-          </button>
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={reportState === "submitting"}
+              >
+                {reportState === "submitting"
+                  ? "Submitting..."
+                  : "Submit incident"}
+              </button>
 
-          {submissionState === "error" && (
-            <p className="form-message error-message">
-              {errorMessage}
-            </p>
+              {reportState === "error" && (
+                <p className="error-message">{reportError}</p>
+              )}
+            </form>
+
+            <aside className="info-panel">
+              <h3>What happens next</h3>
+              <ol>
+                <li>Your report becomes an incident.</li>
+                <li>AI predicts its category and severity.</li>
+                <li>
+                  High-risk incidents are routed to engineers.
+                </li>
+              </ol>
+            </aside>
+          </div>
+
+          {reportState === "success" && submittedIncident && (
+            <section className="success-panel">
+              <p className="success-label">Incident submitted</p>
+              <h3>{submittedIncident.title}</h3>
+              <p>
+                Reference ID:{" "}
+                <code>{submittedIncident.id}</code>
+              </p>
+              <p>
+                Initial assessment:{" "}
+                <strong>
+                  {submittedIncident.predicted_severity}
+                </strong>{" "}
+                severity,{" "}
+                <strong>
+                  {submittedIncident.predicted_category}
+                </strong>{" "}
+                category.
+              </p>
+              <button
+                className="text-button"
+                type="button"
+                onClick={openWorkspace}
+              >
+                Open engineer workspace
+              </button>
+            </section>
           )}
-        </form>
+        </section>
+      )}
 
-        <aside className="help-panel">
-          <h2>What happens next</h2>
-          <ol>
-            <li>Your report is recorded as an incident.</li>
-            <li>The AI predicts its category and severity.</li>
-            <li>High-risk incidents are sent to engineers.</li>
-          </ol>
-        </aside>
-      </section>
+      {activeView === "workspace" && (
+        <section className="workspace-page">
+          <div className="workspace-heading">
+            <div>
+              <p className="eyebrow">For engineers</p>
+              <h2>Engineer workspace</h2>
+              <p>
+                Search incidents, investigate evidence, and
+                record resolutions.
+              </p>
+            </div>
 
-      {submissionState === "success" && submittedIncident && (
-        <section className="success-panel">
-          <p className="success-label">Incident submitted</p>
-          <h2>{submittedIncident.title}</h2>
-          <p>
-            Reference ID: <code>{submittedIncident.id}</code>
-          </p>
-          <p>
-            Initial assessment:{" "}
-            <strong>
-              {submittedIncident.predicted_severity}
-            </strong>{" "}
-            severity,{" "}
-            <strong>
-              {submittedIncident.predicted_category}
-            </strong>{" "}
-            category.
-          </p>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={loadIncidents}
+            >
+              Refresh incidents
+            </button>
+          </div>
+
+          <section className="filter-bar" aria-label="Filters">
+            <input
+              aria-label="Search incidents"
+              type="search"
+              value={searchText}
+              onChange={(event) => {
+                setSearchText(event.target.value);
+              }}
+              placeholder="Search incidents"
+            />
+
+            <select
+              aria-label="Filter by status"
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+              }}
+            >
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="resolved">Resolved</option>
+            </select>
+
+            <select
+              aria-label="Filter by severity"
+              value={severityFilter}
+              onChange={(event) => {
+                setSeverityFilter(event.target.value);
+              }}
+            >
+              <option value="all">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+
+            <select
+              aria-label="Filter by service"
+              value={serviceFilter}
+              onChange={(event) => {
+                setServiceFilter(event.target.value);
+              }}
+            >
+              <option value="all">All services</option>
+              {serviceOptions.map((serviceName) => (
+                <option key={serviceName} value={serviceName}>
+                  {serviceName}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Filter by SLA status"
+              value={slaFilter}
+              onChange={(event) => {
+                setSlaFilter(event.target.value);
+              }}
+            >
+              <option value="all">All SLA states</option>
+              <option value="on_track">On track</option>
+              <option value="at_risk">At risk</option>
+              <option value="breached">Breached</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </section>
+
+          {workspaceState === "loading" && (
+            <p className="state-message">Loading incidents...</p>
+          )}
+
+          {workspaceState === "error" && (
+            <p className="error-message">{workspaceError}</p>
+          )}
+
+          {workspaceState === "ready" && (
+            <section className="workspace-layout">
+              <section className="incident-table-panel">
+                <div className="panel-title-row">
+                  <h3>Incidents</h3>
+                  <span>{filteredIncidents.length} shown</span>
+                </div>
+
+                {filteredIncidents.length === 0 ? (
+                  <p className="state-message">
+                    No incidents match these filters.
+                  </p>
+                ) : (
+                  <div className="incident-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Incident</th>
+                          <th>Service</th>
+                          <th>Severity</th>
+                          <th>SLA</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredIncidents.map((incident) => (
+                          <tr
+                            key={incident.id}
+                            className={
+                              selectedIncident?.id === incident.id
+                                ? "selected-row"
+                                : ""
+                            }
+                            onClick={() => selectIncident(incident)}
+                          >
+                            <td>
+                              <strong>{incident.title}</strong>
+                              <span className="table-subtext">
+                                {formatDate(incident.created_at)}
+                              </span>
+                            </td>
+                            <td>{incident.service_name}</td>
+                            <td>
+                              <span
+                                className={
+                                  `status-badge severity-`
+                                  + `${
+                                    incident.predicted_severity
+                                    || incident.severity
+                                  }`
+                                }
+                              >
+                                {incident.predicted_severity
+                                  || incident.severity}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={
+                                  `status-badge sla-`
+                                  + `${incident.sla_status}`
+                                }
+                              >
+                                {formatSlaStatus(
+                                  incident.sla_status,
+                                )}
+                              </span>
+                            </td>
+                            <td>{incident.status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              <aside className="detail-panel">
+                {!selectedIncident && (
+                  <p className="state-message">
+                    Select an incident to investigate it.
+                  </p>
+                )}
+
+                {selectedIncident && (
+                  <>
+                    <div className="detail-heading">
+                      <div>
+                        <p className="eyebrow">
+                          Incident detail
+                        </p>
+                        <h3>{selectedIncident.title}</h3>
+                      </div>
+                      <span
+                        className={
+                          `status-badge sla-`
+                          + `${selectedIncident.sla_status}`
+                        }
+                      >
+                        {formatSlaStatus(
+                          selectedIncident.sla_status,
+                        )}
+                      </span>
+                    </div>
+
+                    <p className="detail-description">
+                      {selectedIncident.description}
+                    </p>
+
+                    <dl className="detail-grid">
+                      <div>
+                        <dt>Service</dt>
+                        <dd>{selectedIncident.service_name}</dd>
+                      </div>
+                      <div>
+                        <dt>Severity</dt>
+                        <dd>
+                          {selectedIncident.predicted_severity
+                            || selectedIncident.severity}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>SLA due</dt>
+                        <dd>
+                          {formatDate(
+                            selectedIncident.sla_due_at,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Triage route</dt>
+                        <dd>
+                          {selectedIncident.triage_route
+                            || "Not available"}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <section className="evidence-section">
+                      <h4>Similar past incidents</h4>
+                      {detailsState === "loading" && (
+                        <p>Loading investigation evidence...</p>
+                      )}
+                      {detailsState === "ready"
+                        && similarIncidents.length === 0 && (
+                        <p>No similar incidents found.</p>
+                      )}
+                      {detailsState === "ready"
+                        && similarIncidents.length > 0 && (
+                        <ul>
+                          {similarIncidents.map((incident) => (
+                            <li key={incident.id}>
+                              <strong>{incident.title}</strong>
+                              <span>
+                                {Math.round(
+                                  incident.similarity_score * 100,
+                                )}
+                                % similar
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+
+                    <section className="evidence-section">
+                      <h4>Change evidence</h4>
+                      {detailsState === "ready"
+                        && correlations.length === 0 && (
+                        <p>No saved change evidence.</p>
+                      )}
+                      {detailsState === "ready"
+                        && correlations.length > 0 && (
+                        <p>
+                          {correlations[0].correlation_reason}
+                        </p>
+                      )}
+                    </section>
+
+                    <section className="evidence-section">
+                      <h4>Recommendations</h4>
+                      {detailsState === "ready"
+                        && recommendations.length === 0 && (
+                        <p>No recommendations saved.</p>
+                      )}
+                      {detailsState === "ready"
+                        && recommendations.length > 0 && (
+                        <p>
+                          {recommendations[0].recommendation}
+                        </p>
+                      )}
+                    </section>
+
+                    {selectedIncident.status === "resolved" ? (
+                      <section className="resolution-record">
+                        <h4>Resolution record</h4>
+                        <p>
+                          Resolved by:{" "}
+                          <strong>
+                            {selectedIncident.resolved_by}
+                          </strong>
+                        </p>
+                        <p>{selectedIncident.resolution_note}</p>
+                        <p>
+                          Resolved at:{" "}
+                          {formatDate(selectedIncident.resolved_at)}
+                        </p>
+                      </section>
+                    ) : (
+                      <form
+                        className="resolution-form"
+                        onSubmit={submitResolution}
+                      >
+                        <h4>Resolve incident</h4>
+
+                        <label htmlFor="resolved_by">
+                          Resolved by
+                        </label>
+                        <input
+                          id="resolved_by"
+                          name="resolved_by"
+                          value={resolutionForm.resolved_by}
+                          onChange={updateResolutionField}
+                          placeholder="Engineer name"
+                          minLength="2"
+                          required
+                        />
+
+                        <label htmlFor="resolution_note">
+                          Resolution note
+                        </label>
+                        <textarea
+                          id="resolution_note"
+                          name="resolution_note"
+                          value={resolutionForm.resolution_note}
+                          onChange={updateResolutionField}
+                          placeholder="Describe the fix and verification."
+                          minLength="10"
+                          required
+                        />
+
+                        <button
+                          className="resolve-button"
+                          type="submit"
+                          disabled={
+                            resolutionState === "submitting"
+                          }
+                        >
+                          {resolutionState === "submitting"
+                            ? "Resolving..."
+                            : "Mark as resolved"}
+                        </button>
+
+                        {resolutionState === "success" && (
+                          <p className="success-message">
+                            Incident resolved successfully.
+                          </p>
+                        )}
+
+                        {resolutionState === "error" && (
+                          <p className="error-message">
+                            {resolutionError}
+                          </p>
+                        )}
+                      </form>
+                    )}
+                  </>
+                )}
+              </aside>
+            </section>
+          )}
         </section>
       )}
     </main>

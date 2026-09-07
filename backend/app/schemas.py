@@ -83,6 +83,9 @@ class IncidentResponse(BaseModel):
     triaged_at: datetime | None
     sla_due_at: datetime | None
     sla_status: str
+    resolved_by: str | None
+    resolution_note: str | None
+    resolved_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -100,6 +103,10 @@ class SimilarIncidentResponse(BaseModel):
 class IncidentUpdate(BaseModel):
     severity: Severity | None = None
     status: IncidentStatus | None = None
+
+class IncidentResolutionCreate(BaseModel):
+    resolved_by: str
+    resolution_note: str
 
 
 class ChangeEventCreate(BaseModel):

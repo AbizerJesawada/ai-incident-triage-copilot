@@ -75,6 +75,18 @@ class Incident(Base):
         String(20),
         default="on_track",
     )
+    resolved_by: Mapped[str | None] = mapped_column(
+    String(100),
+    nullable=True,
+    )
+    resolution_note: Mapped[str | None] = mapped_column(
+    Text,
+    nullable=True,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(
+    DateTime(timezone=True),
+    nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
