@@ -134,6 +134,32 @@ function App() {
       });
   }, []);
 
+  useEffect(() => {
+    function handleExpiredSession() {
+      setCurrentUser(null);
+      setActiveView("report");
+      setIncidents([]);
+      setSelectedIncident(null);
+      setAuthMode("login");
+      setAuthError(
+        "Your session expired. Please sign in again.",
+      );
+      setAuthState("ready");
+    }
+
+    window.addEventListener(
+      "auth-expired",
+      handleExpiredSession,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "auth-expired",
+        handleExpiredSession,
+      );
+    };
+  }, []);
+
   async function loadIncidents() {
     setWorkspaceState("loading");
     setWorkspaceError("");
@@ -968,9 +994,23 @@ function App() {
                 </div>
 
                 {filteredIncidents.length === 0 ? (
-                  <p className="state-message">
-                    No incidents match these filters.
-                  </p>
+                  <div className="empty-incidents">
+                    <p className="state-message">
+                      {incidents.length === 0
+                        ? "No incidents have been reported from this account."
+                        : "No incidents match these filters."}
+                    </p>
+
+                    {!isEngineer && incidents.length === 0 && (
+                      <button
+                        className="primary-button"
+                        type="button"
+                        onClick={() => setActiveView("report")}
+                      >
+                        Report an issue
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="incident-table-wrap">
                     <table>
@@ -1096,6 +1136,56 @@ function App() {
                         </dd>
                       </div>
                     </dl>
+
+                    <section
+                      className="incident-timeline"
+                      aria-label="Incident progress"
+                    >
+                      <h4>Incident progress</h4>
+
+                      <ol>
+                        <li className="timeline-complete">
+                          <strong>Reported</strong>
+                          <span>
+                            {formatDate(selectedIncident.created_at)}
+                          </span>
+                        </li>
+
+                        <li
+                          className={
+                            selectedIncident.triaged_at
+                              ? "timeline-complete"
+                              : "timeline-current"
+                          }
+                        >
+                          <strong>Triaged</strong>
+                          <span>
+                            {selectedIncident.triaged_at
+                              ? formatDate(selectedIncident.triaged_at)
+                              : "Waiting for triage"}
+                          </span>
+                        </li>
+
+                        <li
+                          className={
+                            selectedIncident.status === "resolved"
+                              ? "timeline-complete"
+                              : "timeline-current"
+                          }
+                        >
+                          <strong>
+                            {selectedIncident.status === "resolved"
+                              ? "Resolved"
+                              : "Awaiting resolution"}
+                          </strong>
+                          <span>
+                            {selectedIncident.status === "resolved"
+                              ? formatDate(selectedIncident.resolved_at)
+                              : "An engineer is reviewing this incident."}
+                          </span>
+                        </li>
+                      </ol>
+                    </section>
 
                     {isEngineer && (
                       <>

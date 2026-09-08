@@ -816,3 +816,92 @@ tbody tr:hover {
     text-align: left;
   }
 }
+
+.incident-timeline {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.incident-timeline h4 {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.incident-timeline ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.incident-timeline li {
+  position: relative;
+  min-height: 54px;
+  padding: 0 0 16px 30px;
+}
+
+.incident-timeline li::before {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #aebcc6;
+  border-radius: 50%;
+  background: #ffffff;
+  content: "";
+}
+
+.incident-timeline li:not(:last-child)::after {
+  position: absolute;
+  top: 17px;
+  bottom: 0;
+  left: 7px;
+  width: 2px;
+  background: #d8e1e7;
+  content: "";
+}
+
+.incident-timeline li strong,
+.incident-timeline li span {
+  display: block;
+}
+
+.incident-timeline li strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.incident-timeline li span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.incident-timeline .timeline-complete::before {
+  border-color: var(--teal);
+  background: var(--teal);
+}
+
+.incident-timeline .timeline-complete:not(:last-child)::after {
+  background: var(--teal);
+}
+
+.incident-timeline .timeline-current::before {
+  border-color: var(--orange);
+  background: #fff1e6;
+}
+
+.empty-incidents {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 24px 18px;
+}
+
+.empty-incidents .primary-button {
+  margin-top: 0;
+}

@@ -622,3 +622,19 @@ Normal users cannot access these internal operations routes.
 
 ```bash
 docker compose run --rm backend pytest tests -v
+
+## Day 28: Frontend Usability Polish
+
+The React frontend was improved for clearer everyday use.
+
+- Incident progress timeline: Reported, Triaged, and Resolved states.
+- Better empty state with a direct Report an issue button.
+- Expired login sessions return users to sign-in automatically.
+- Responsive mobile layout tested for reporting, analytics, and resolution history.
+
+### Verification
+
+```bash
+cd frontend
+npm run lint
+npm run build

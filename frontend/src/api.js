@@ -31,6 +31,14 @@ async function request(path, options = {}) {
     },
   );
 
+  if (
+    response.status === 401
+    && path !== "/auth/login"
+  ) {
+    clearAccessToken();
+    window.dispatchEvent(new Event("auth-expired"));
+  }
+
   if (!response.ok) {
     let message = "Something went wrong.";
 
