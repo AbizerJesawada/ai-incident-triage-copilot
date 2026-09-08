@@ -638,3 +638,26 @@ The React frontend was improved for clearer everyday use.
 cd frontend
 npm run lint
 npm run build
+
+## Day 29: Production Deployment
+
+The AI Incident Triage Copilot is deployed on Render with a separate production frontend, backend, and PostgreSQL database.
+
+### Production URLs
+
+| Service | URL |
+| --- | --- |
+| React frontend | https://incident-copilot-frontend.onrender.com |
+| FastAPI backend | https://incident-copilot-api.onrender.com |
+| API documentation | https://incident-copilot-api.onrender.com/docs |
+
+### Frontend Deployment
+
+The React application is deployed as a Render Static Site.
+
+```text
+Repository: ai-incident-triage-copilot
+Branch: main
+Root Directory: frontend
+Build Command: npm run build
+Publish Directory: dist
