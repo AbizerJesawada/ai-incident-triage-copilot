@@ -9,3 +9,6 @@ backend/artifacts/*.json
 sample-data/external/
 
 sample-data/external/
+
+ngrok
+backend/artifacts/engineer_feedback_training.csv
