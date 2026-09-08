@@ -37,6 +37,7 @@ from app.models import (
     IncidentReview,
     LLMGenerationLog,
     RemediationRecommendation,
+    User,
 )
 from app.notification_service import (
     create_review_notification_if_needed,
@@ -67,6 +68,10 @@ from app.schemas import (
     RemediationRecommendationReview,
     RootCauseHypothesisResponse,
     SimilarIncidentResponse,
+    AccessTokenResponse,
+    CurrentUserResponse,
+    UserLoginRequest,
+    UserRegistrationCreate,
 )
 from app.services import find_related_change_events
 from app.similar_incident_service import find_similar_incidents
@@ -79,6 +84,15 @@ from app.slack_event_service import (
     is_valid_slack_request,
 )
 from app.triage_service import triage_incident
+from app.auth_dependencies import (
+    get_current_user,
+    require_engineer,
+)
+from app.auth_service import (
+    create_access_token,
+    hash_password,
+    verify_password,
+)
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -107,6 +121,105 @@ app.add_middleware(
 )
 
 
+@app.post(
+    "/auth/register",
+    response_model=CurrentUserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_user(
+    user_data: UserRegistrationCreate,
+    db: Session = Depends(get_db),
+) -> User:
+    email = user_data.email.strip().lower()
+    full_name = user_data.full_name.strip()
+
+    if "@" not in email or len(email) > 255:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Enter a valid email address.",
+        )
+
+    if len(full_name) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Full name must contain at least 2 characters.",
+        )
+
+    if len(user_data.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must contain at least 8 characters.",
+        )
+
+    existing_user = db.scalar(
+        select(User).where(User.email == email),
+    )
+
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists.",
+        )
+
+    user = User(
+        email=email,
+        full_name=full_name,
+        password_hash=hash_password(user_data.password),
+        role="user",
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+
+@app.post(
+    "/auth/login",
+    response_model=AccessTokenResponse,
+)
+def login_user(
+    login_data: UserLoginRequest,
+    db: Session = Depends(get_db),
+) -> AccessTokenResponse:
+    email = login_data.email.strip().lower()
+
+    user = db.scalar(
+        select(User).where(User.email == email),
+    )
+
+    if user is None or not verify_password(
+        login_data.password,
+        user.password_hash,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password.",
+        )
+
+    return AccessTokenResponse(
+        access_token=create_access_token(
+            user_id=user.id,
+            role=user.role,
+        ),
+        token_type="bearer",
+        user_id=user.id,
+        full_name=user.full_name,
+        role=user.role,
+    )
+
+
+@app.get(
+    "/auth/me",
+    response_model=CurrentUserResponse,
+)
+def get_my_account(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return current_user
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {
@@ -127,6 +240,7 @@ def dashboard() -> FileResponse:
 def create_incident(
     incident_data: IncidentCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Incident:
     try:
         triage = triage_incident(
@@ -145,6 +259,7 @@ def create_incident(
 
     incident = Incident(
         **incident_data.model_dump(),
+        reported_by_user_id=current_user.id,
         predicted_category=str(triage["predicted_category"]),
         predicted_severity=predicted_severity,
         category_confidence=float(
@@ -199,8 +314,14 @@ def list_incidents(
     service_name: str | None = None,
     limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> list[Incident]:
     statement = select(Incident)
+
+    if current_user.role != "engineer":
+        statement = statement.where(
+            Incident.reported_by_user_id == current_user.id,
+        )
 
     if severity:
         statement = statement.where(Incident.severity == severity)
@@ -224,12 +345,12 @@ def list_incidents(
             incident.sla_status = "resolved"
             continue
 
-    incident.sla_status = calculate_sla_status(
-        sla_due_at=incident.sla_due_at,
-        predicted_severity=(
-            incident.predicted_severity or "medium"
-        ),
-    )
+        incident.sla_status = calculate_sla_status(
+            sla_due_at=incident.sla_due_at,
+            predicted_severity=(
+                incident.predicted_severity or "medium"
+            ),
+        )
 
     db.commit()
 
@@ -276,6 +397,7 @@ def resolve_incident(
     incident_id: UUID,
     resolution_data: IncidentResolutionCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> Incident:
     incident = db.get(Incident, incident_id)
 
@@ -292,7 +414,7 @@ def resolve_incident(
         )
 
     incident.status = "resolved"
-    incident.resolved_by = resolution_data.resolved_by
+    incident.resolved_by = current_user.full_name
     incident.resolution_note = resolution_data.resolution_note
     incident.resolved_at = datetime.now(timezone.utc)
     incident.sla_status = "resolved"
@@ -310,6 +432,7 @@ def resolve_incident(
 def list_similar_incidents(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> list[SimilarIncidentResponse]:
     incident = db.get(Incident, incident_id)
 
@@ -345,7 +468,7 @@ def list_similar_incidents(
             created_at=match.created_at,
         )
         for match, score in matches
-    ]
+]
 
 
 @app.get(
@@ -355,6 +478,7 @@ def list_similar_incidents(
 def get_incident(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> Incident:
     incident = db.get(Incident, incident_id)
 
@@ -362,6 +486,15 @@ def get_incident(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Incident not found.",
+        )
+
+    if (
+        current_user.role != "engineer"
+        and incident.reported_by_user_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this incident.",
         )
 
     return incident
@@ -772,6 +905,7 @@ def list_incident_correlations(
 def get_incident_correlation_timeline(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> list[dict[str, object]]:
     incident = db.get(Incident, incident_id)
 
@@ -823,6 +957,7 @@ def get_incident_correlation_timeline(
 def get_root_cause_hypothesis(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> dict[str, object]:
     incident = db.get(Incident, incident_id)
 
@@ -899,6 +1034,7 @@ def get_root_cause_hypothesis(
 def generate_incident_recommendations(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> list[RemediationRecommendation]:
     incident = db.get(Incident, incident_id)
 
@@ -996,6 +1132,7 @@ def generate_incident_recommendations(
 def list_incident_recommendations(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> list[RemediationRecommendation]:
     incident = db.get(Incident, incident_id)
 
@@ -1058,6 +1195,7 @@ def review_remediation_recommendation(
 def get_incident_briefing(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> dict[str, object]:
     incident = db.get(Incident, incident_id)
 
@@ -1248,6 +1386,7 @@ def get_incident_briefing(
 def list_incident_llm_generation_logs(
     incident_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> list[LLMGenerationLog]:
     incident = db.get(Incident, incident_id)
 
@@ -1271,6 +1410,7 @@ def list_incident_llm_generation_logs(
 )
 def get_llm_generation_summary(
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
 ) -> dict[str, object]:
     total_calls = db.scalar(
         select(func.count()).select_from(LLMGenerationLog)

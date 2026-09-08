@@ -1,11 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import {
+  clearAccessToken,
   createIncident,
+  getAccessToken,
   getCorrelationTimeline,
+  getCurrentUser,
   getIncidents,
   getRecommendations,
   getSimilarIncidents,
+  loginUser,
+  registerUser,
   resolveIncident,
 } from "./api";
 
@@ -17,8 +22,13 @@ const initialReportForm = {
 };
 
 const initialResolutionForm = {
-  resolved_by: "",
   resolution_note: "",
+};
+
+const initialAuthForm = {
+  full_name: "",
+  email: "",
+  password: "",
 };
 
 function formatDate(value) {
@@ -34,6 +44,15 @@ function formatSlaStatus(value) {
 }
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authState, setAuthState] = useState(() => {
+    return getAccessToken() ? "checking" : "ready";
+  });
+  const [authMode, setAuthMode] = useState("login");
+  const [authForm, setAuthForm] = useState(initialAuthForm);
+  const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
+
   const [activeView, setActiveView] = useState("report");
   const [reportForm, setReportForm] = useState(
     initialReportForm,
@@ -64,6 +83,24 @@ function App() {
   );
   const [resolutionState, setResolutionState] = useState("idle");
   const [resolutionError, setResolutionError] = useState("");
+
+  const isEngineer = currentUser?.role === "engineer";
+
+  useEffect(() => {
+    if (!getAccessToken()) {
+      return;
+    }
+
+    getCurrentUser()
+      .then((user) => {
+        setCurrentUser(user);
+        setAuthState("ready");
+      })
+      .catch(() => {
+        clearAccessToken();
+        setAuthState("ready");
+      });
+  }, []);
 
   async function loadIncidents() {
     setWorkspaceState("loading");
@@ -131,6 +168,15 @@ function App() {
     slaFilter,
   ]);
 
+  function updateAuthField(event) {
+    const { name, value } = event.target;
+
+    setAuthForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  }
+
   function updateReportField(event) {
     const { name, value } = event.target;
 
@@ -147,6 +193,72 @@ function App() {
       ...currentForm,
       [name]: value,
     }));
+  }
+
+  async function submitAuthentication(event) {
+    event.preventDefault();
+
+    setAuthState("submitting");
+    setAuthError("");
+    setAuthSuccess("");
+
+    try {
+      if (authMode === "register") {
+        await registerUser({
+          full_name: authForm.full_name,
+          email: authForm.email,
+          password: authForm.password,
+        });
+
+        setAuthForm({
+          full_name: "",
+          email: authForm.email,
+          password: "",
+        });
+        setAuthMode("login");
+        setAuthSuccess(
+          "Account created. Sign in with your email and password.",
+        );
+        setAuthState("ready");
+
+        return;
+      }
+
+      await loginUser({
+        email: authForm.email,
+        password: authForm.password,
+      });
+
+      const user = await getCurrentUser();
+
+      setCurrentUser(user);
+      setActiveView(
+        user.role === "engineer" ? "workspace" : "report",
+      );
+
+      if (user.role === "engineer") {
+        loadIncidents();
+      }
+
+      setAuthForm(initialAuthForm);
+      setAuthState("ready");
+    } catch (error) {
+      setAuthError(error.message);
+      setAuthState("error");
+    }
+  }
+
+  function logout() {
+    clearAccessToken();
+    setCurrentUser(null);
+    setActiveView("report");
+    setIncidents([]);
+    setSelectedIncident(null);
+    setSubmittedIncident(null);
+    setAuthForm(initialAuthForm);
+    setAuthError("");
+    setAuthSuccess("");
+    setAuthState("ready");
   }
 
   async function submitIncident(event) {
@@ -178,6 +290,15 @@ function App() {
     setResolutionState("idle");
     setResolutionError("");
     setDetailsState("loading");
+
+    if (!isEngineer) {
+      setSimilarIncidents([]);
+      setCorrelations([]);
+      setRecommendations([]);
+      setDetailsState("ready");
+
+      return;
+    }
 
     try {
       const [
@@ -236,6 +357,109 @@ function App() {
     loadIncidents();
   }
 
+  if (authState === "checking") {
+    return (
+      <main className="auth-page">
+        <p className="state-message">Checking your session...</p>
+      </main>
+    );
+  }
+
+  if (!currentUser) {
+    const isRegistering = authMode === "register";
+
+    return (
+      <main className="auth-page">
+        <section className="auth-panel">
+          <p className="product-name">
+            AI Incident Triage Copilot
+          </p>
+          <h1>
+            {isRegistering ? "Create account" : "Sign in"}
+          </h1>
+
+          <form
+            className="auth-form"
+            onSubmit={submitAuthentication}
+          >
+            {isRegistering && (
+              <>
+                <label htmlFor="full_name">Full name</label>
+                <input
+                  id="full_name"
+                  name="full_name"
+                  type="text"
+                  value={authForm.full_name}
+                  onChange={updateAuthField}
+                  minLength="2"
+                  maxLength="100"
+                  required
+                />
+              </>
+            )}
+
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              value={authForm.email}
+              onChange={updateAuthField}
+              required
+            />
+
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={authForm.password}
+              onChange={updateAuthField}
+              minLength="8"
+              required
+            />
+
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={authState === "submitting"}
+            >
+              {authState === "submitting"
+                ? "Please wait..."
+                : isRegistering
+                  ? "Create account"
+                  : "Sign in"}
+            </button>
+
+            {authError && (
+              <p className="error-message">{authError}</p>
+            )}
+
+            {authSuccess && (
+              <p className="success-message">{authSuccess}</p>
+            )}
+          </form>
+
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              setAuthMode(
+                isRegistering ? "login" : "register",
+              );
+              setAuthError("");
+              setAuthSuccess("");
+            }}
+          >
+            {isRegistering
+              ? "Already have an account? Sign in"
+              : "Need an account? Create one"}
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -246,41 +470,61 @@ function App() {
           <h1>Incident operations</h1>
         </div>
 
-        <nav className="view-tabs" aria-label="Application views">
+        <div className="header-actions">
+          <div className="current-user">
+            <strong>{currentUser.full_name}</strong>
+            <span>{currentUser.role}</span>
+          </div>
+
+          <nav className="view-tabs" aria-label="Application views">
+            <button
+              className={
+                activeView === "report"
+                  ? "tab-button tab-active"
+                  : "tab-button"
+              }
+              type="button"
+              onClick={() => setActiveView("report")}
+            >
+              {isEngineer ? "New incident" : "Report issue"}
+            </button>
+            <button
+              className={
+                activeView === "workspace"
+                  ? "tab-button tab-active"
+                  : "tab-button"
+              }
+              type="button"
+              onClick={openWorkspace}
+            >
+              {isEngineer
+                ? "Engineer workspace"
+                : "My incidents"}
+            </button>
+          </nav>
+
           <button
-            className={
-              activeView === "report"
-                ? "tab-button tab-active"
-                : "tab-button"
-            }
+            className="secondary-button"
             type="button"
-            onClick={() => setActiveView("report")}
+            onClick={logout}
           >
-            Report issue
+            Log out
           </button>
-          <button
-            className={
-              activeView === "workspace"
-                ? "tab-button tab-active"
-                : "tab-button"
-            }
-            type="button"
-            onClick={openWorkspace}
-          >
-            Engineer workspace
-          </button>
-        </nav>
+        </div>
       </header>
 
       {activeView === "report" && (
         <section className="report-page">
           <div className="report-intro">
-            <p className="eyebrow">For users</p>
-            <h2>Report an issue</h2>
+            <p className="eyebrow">
+              {isEngineer ? "For engineers" : "For users"}
+            </p>
+            <h2>
+              {isEngineer ? "Create incident" : "Report an issue"}
+            </h2>
             <p>
-              Describe what is not working. The system records
-              your report, triages it, and notifies engineers
-              when review is needed.
+              Describe what is not working and submit the issue
+              for triage.
             </p>
           </div>
 
@@ -349,14 +593,11 @@ function App() {
             </form>
 
             <aside className="info-panel">
-              <h3>What happens next</h3>
-              <ol>
-                <li>Your report becomes an incident.</li>
-                <li>AI predicts its category and severity.</li>
-                <li>
-                  High-risk incidents are routed to engineers.
-                </li>
-              </ol>
+              <h3>Report status</h3>
+              <p>
+                You can view incidents reported from your account
+                in My incidents.
+              </p>
             </aside>
           </div>
 
@@ -384,7 +625,9 @@ function App() {
                 type="button"
                 onClick={openWorkspace}
               >
-                Open engineer workspace
+                {isEngineer
+                  ? "Open engineer workspace"
+                  : "View my incidents"}
               </button>
             </section>
           )}
@@ -395,11 +638,18 @@ function App() {
         <section className="workspace-page">
           <div className="workspace-heading">
             <div>
-              <p className="eyebrow">For engineers</p>
-              <h2>Engineer workspace</h2>
+              <p className="eyebrow">
+                {isEngineer ? "For engineers" : "For users"}
+              </p>
+              <h2>
+                {isEngineer
+                  ? "Engineer workspace"
+                  : "My incidents"}
+              </h2>
               <p>
-                Search incidents, investigate evidence, and
-                record resolutions.
+                {isEngineer
+                  ? "Search incidents, investigate evidence, and record resolutions."
+                  : "Review the incidents submitted from your account."}
               </p>
             </div>
 
@@ -567,7 +817,7 @@ function App() {
               <aside className="detail-panel">
                 {!selectedIncident && (
                   <p className="state-message">
-                    Select an incident to investigate it.
+                    Select an incident to view its details.
                   </p>
                 )}
 
@@ -625,62 +875,68 @@ function App() {
                       </div>
                     </dl>
 
-                    <section className="evidence-section">
-                      <h4>Similar past incidents</h4>
-                      {detailsState === "loading" && (
-                        <p>Loading investigation evidence...</p>
-                      )}
-                      {detailsState === "ready"
-                        && similarIncidents.length === 0 && (
-                        <p>No similar incidents found.</p>
-                      )}
-                      {detailsState === "ready"
-                        && similarIncidents.length > 0 && (
-                        <ul>
-                          {similarIncidents.map((incident) => (
-                            <li key={incident.id}>
-                              <strong>{incident.title}</strong>
-                              <span>
-                                {Math.round(
-                                  incident.similarity_score * 100,
-                                )}
-                                % similar
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </section>
+                    {isEngineer && (
+                      <>
+                        <section className="evidence-section">
+                          <h4>Similar past incidents</h4>
+                          {detailsState === "loading" && (
+                            <p>
+                              Loading investigation evidence...
+                            </p>
+                          )}
+                          {detailsState === "ready"
+                            && similarIncidents.length === 0 && (
+                            <p>No similar incidents found.</p>
+                          )}
+                          {detailsState === "ready"
+                            && similarIncidents.length > 0 && (
+                            <ul>
+                              {similarIncidents.map((incident) => (
+                                <li key={incident.id}>
+                                  <strong>{incident.title}</strong>
+                                  <span>
+                                    {Math.round(
+                                      incident.similarity_score * 100,
+                                    )}
+                                    % similar
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
 
-                    <section className="evidence-section">
-                      <h4>Change evidence</h4>
-                      {detailsState === "ready"
-                        && correlations.length === 0 && (
-                        <p>No saved change evidence.</p>
-                      )}
-                      {detailsState === "ready"
-                        && correlations.length > 0 && (
-                        <p>
-                          {correlations[0].correlation_reason}
-                        </p>
-                      )}
-                    </section>
+                        <section className="evidence-section">
+                          <h4>Change evidence</h4>
+                          {detailsState === "ready"
+                            && correlations.length === 0 && (
+                            <p>No saved change evidence.</p>
+                          )}
+                          {detailsState === "ready"
+                            && correlations.length > 0 && (
+                            <p>
+                              {correlations[0].correlation_reason}
+                            </p>
+                          )}
+                        </section>
 
-                    <section className="evidence-section">
-                      <h4>Recommendations</h4>
-                      {detailsState === "ready"
-                        && recommendations.length === 0 && (
-                        <p>No recommendations saved.</p>
-                      )}
-                      {detailsState === "ready"
-                        && recommendations.length > 0 && (
-                        <p>
-                          {recommendations[0].recommendation}
-                        </p>
-                      )}
-                    </section>
+                        <section className="evidence-section">
+                          <h4>Recommendations</h4>
+                          {detailsState === "ready"
+                            && recommendations.length === 0 && (
+                            <p>No recommendations saved.</p>
+                          )}
+                          {detailsState === "ready"
+                            && recommendations.length > 0 && (
+                            <p>
+                              {recommendations[0].recommendation}
+                            </p>
+                          )}
+                        </section>
+                      </>
+                    )}
 
-                    {selectedIncident.status === "resolved" ? (
+                    {selectedIncident.status === "resolved" && (
                       <section className="resolution-record">
                         <h4>Resolution record</h4>
                         <p>
@@ -695,25 +951,15 @@ function App() {
                           {formatDate(selectedIncident.resolved_at)}
                         </p>
                       </section>
-                    ) : (
+                    )}
+
+                    {isEngineer
+                      && selectedIncident.status !== "resolved" && (
                       <form
                         className="resolution-form"
                         onSubmit={submitResolution}
                       >
                         <h4>Resolve incident</h4>
-
-                        <label htmlFor="resolved_by">
-                          Resolved by
-                        </label>
-                        <input
-                          id="resolved_by"
-                          name="resolved_by"
-                          value={resolutionForm.resolved_by}
-                          onChange={updateResolutionField}
-                          placeholder="Engineer name"
-                          minLength="2"
-                          required
-                        />
 
                         <label htmlFor="resolution_note">
                           Resolution note

@@ -72,6 +72,7 @@ class IncidentResponse(BaseModel):
     severity: Severity
     status: IncidentStatus
     source: str
+    reported_by_user_id: UUID | None
     predicted_category: str | None
     predicted_severity: Severity | None
     category_confidence: float | None
@@ -105,7 +106,6 @@ class IncidentUpdate(BaseModel):
     status: IncidentStatus | None = None
 
 class IncidentResolutionCreate(BaseModel):
-    resolved_by: str
     resolution_note: str
 
 
@@ -295,3 +295,31 @@ class EngineerNotificationResponse(BaseModel):
     acknowledged_at: datetime | None
     slack_channel_id: str | None
     slack_message_ts: str | None
+
+class UserRegistrationCreate(BaseModel):
+    email: str
+    full_name: str
+    password: str
+
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AccessTokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user_id: UUID
+    full_name: str
+    role: str
+
+
+class CurrentUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: str
+    full_name: str
+    role: str
+    created_at: datetime

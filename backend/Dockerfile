@@ -14,6 +14,7 @@ COPY app ./app
 COPY training ./training
 COPY artifacts ./artifacts
 COPY tests ./tests
+COPY scripts ./scripts
 
 EXPOSE 8000
 

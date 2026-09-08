@@ -550,3 +550,48 @@ Current verification result:
 Frontend lint passed
 Frontend production build passed
 ```
+
+## Day 26: Authentication and Role Access
+
+The project now supports secure login and two user roles:
+
+- `user`: Can register, sign in, report incidents, and view only their own incidents.
+- `engineer`: Can view all incidents, investigate internal evidence, and resolve incidents.
+
+### Authentication
+
+1. A user registers with name, email, and password.
+2. The backend stores a secure password hash.
+3. Login returns a JWT access token.
+4. The React app saves the token for the current browser tab.
+5. Every API request automatically sends the token.
+
+Add a private key in `.env`:
+
+```env
+JWT_SECRET_KEY=your-private-random-key
+
+Generate one with:
+openssl rand -hex 32
+Engineer Access
+Only engineers can access:
+- Incident resolution
+- Similar incidents
+- Change evidence
+- Root-cause hypotheses
+- Remediation recommendations
+- AI briefings and generation logs
+Normal users receive:
+{
+  "detail": "Engineer access is required."
+}
+Database Changes
+- 012_add_users_table.sql: Adds user accounts and roles.
+- 013_add_incident_reporter_field.sql: Links new incidents to the reporting user.
+Verification
+docker compose run --rm backend pytest tests -v
+Result: 19 passed
+cd frontend
+npm run lint
+npm run build
+Both frontend checks pass.

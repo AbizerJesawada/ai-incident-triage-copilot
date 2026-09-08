@@ -7,6 +7,29 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(
+        SQLAlchemyUUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+    )
+    full_name: Mapped[str] = mapped_column(String(100))
+    password_hash: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default="user",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
 
 class Incident(Base):
     __tablename__ = "incidents"
@@ -30,6 +53,10 @@ class Incident(Base):
     source: Mapped[str] = mapped_column(
         String(50),
         default="manual",
+    )
+    reported_by_user_id: Mapped[UUID | None] = mapped_column(
+    SQLAlchemyUUID(as_uuid=True),
+    nullable=True,
     )
     predicted_category: Mapped[str | None] = mapped_column(
         String(50),
