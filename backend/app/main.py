@@ -72,6 +72,8 @@ from app.schemas import (
     CurrentUserResponse,
     UserLoginRequest,
     UserRegistrationCreate,
+    IncidentAnalyticsResponse,
+    ResolutionHistoryItemResponse,
 )
 from app.services import find_related_change_events
 from app.similar_incident_service import find_similar_incidents
@@ -93,7 +95,7 @@ from app.auth_service import (
     hash_password,
     verify_password,
 )
-
+from app.analytics_service import build_incident_analytics
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -355,6 +357,81 @@ def list_incidents(
     db.commit()
 
     return incidents
+
+@app.get(
+    "/analytics/incidents",
+    response_model=IncidentAnalyticsResponse,
+)
+def get_incident_analytics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
+) -> IncidentAnalyticsResponse:
+    incidents = list(
+        db.scalars(select(Incident)).all()
+    )
+
+    for incident in incidents:
+        if incident.status == "resolved":
+            incident.sla_status = "resolved"
+            continue
+
+        incident.sla_status = calculate_sla_status(
+            sla_due_at=incident.sla_due_at,
+            predicted_severity=(
+                incident.predicted_severity or "medium"
+            ),
+        )
+
+    db.commit()
+
+    return IncidentAnalyticsResponse(
+        **build_incident_analytics(incidents),
+)
+
+@app.get(
+    "/analytics/resolutions",
+    response_model=list[ResolutionHistoryItemResponse],
+)
+def list_resolution_history(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_engineer),
+) -> list[ResolutionHistoryItemResponse]:
+    incidents = list(
+        db.scalars(
+            select(Incident)
+            .where(
+                Incident.status == "resolved",
+                Incident.resolved_at.is_not(None),
+            )
+            .order_by(Incident.resolved_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+    return [
+        ResolutionHistoryItemResponse(
+            id=incident.id,
+            title=incident.title,
+            service_name=incident.service_name,
+            resolved_by=incident.resolved_by,
+            resolution_note=incident.resolution_note,
+            resolved_at=incident.resolved_at,
+            resolution_minutes=(
+                round(
+                    (
+                        incident.resolved_at
+                        - incident.created_at
+                    ).total_seconds() / 60,
+                    2,
+                )
+                if incident.created_at is not None
+                and incident.resolved_at is not None
+                else None
+            ),
+        )
+        for incident in incidents
+]
 
 @app.get(
     "/incidents/sla/breached",

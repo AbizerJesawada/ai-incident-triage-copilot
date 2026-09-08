@@ -112,3 +112,11 @@ export function resolveIncident(incidentId, data) {
     body: JSON.stringify(data),
   });
 }
+
+export function getIncidentAnalytics() {
+  return request("/analytics/incidents");
+}
+
+export function getResolutionHistory() {
+  return request("/analytics/resolutions");
+}

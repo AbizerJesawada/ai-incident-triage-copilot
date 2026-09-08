@@ -7,7 +7,9 @@ import {
   getCorrelationTimeline,
   getCurrentUser,
   getIncidents,
+  getIncidentAnalytics,
   getRecommendations,
+  getResolutionHistory,
   getSimilarIncidents,
   loginUser,
   registerUser,
@@ -43,6 +45,30 @@ function formatSlaStatus(value) {
   return (value || "on_track").replace("_", " ");
 }
 
+function formatResolutionTime(minutes) {
+  if (minutes === null || minutes === undefined) {
+    return "No data";
+  }
+
+  const roundedMinutes = Math.round(minutes);
+  const days = Math.floor(roundedMinutes / 1440);
+  const hours = Math.floor(
+    (roundedMinutes % 1440) / 60,
+  );
+  const remainingMinutes = roundedMinutes % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  return `${remainingMinutes} min`;
+}
+
+
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authState, setAuthState] = useState(() => {
@@ -66,6 +92,12 @@ function App() {
   const [incidents, setIncidents] = useState([]);
   const [workspaceState, setWorkspaceState] = useState("idle");
   const [workspaceError, setWorkspaceError] = useState("");
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsState, setAnalyticsState] = useState("idle");
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [resolutionHistory, setResolutionHistory] = useState([]);
+  const [historyState, setHistoryState] = useState("idle");
+  const [historyError, setHistoryError] = useState("");
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -114,6 +146,36 @@ function App() {
     } catch (error) {
       setWorkspaceError(error.message);
       setWorkspaceState("error");
+    }
+  }
+
+  async function loadAnalytics() {
+    setAnalyticsState("loading");
+    setAnalyticsError("");
+
+    try {
+      const summary = await getIncidentAnalytics();
+
+      setAnalytics(summary);
+      setAnalyticsState("ready");
+    } catch (error) {
+      setAnalyticsError(error.message);
+      setAnalyticsState("error");
+    }
+  }
+
+  async function loadResolutionHistory() {
+    setHistoryState("loading");
+    setHistoryError("");
+
+    try {
+      const history = await getResolutionHistory();
+
+      setResolutionHistory(history);
+      setHistoryState("ready");
+    } catch (error) {
+      setHistoryError(error.message);
+      setHistoryState("error");
     }
   }
 
@@ -238,6 +300,8 @@ function App() {
 
       if (user.role === "engineer") {
         loadIncidents();
+        loadAnalytics();
+        loadResolutionHistory();
       }
 
       setAuthForm(initialAuthForm);
@@ -355,6 +419,11 @@ function App() {
   function openWorkspace() {
     setActiveView("workspace");
     loadIncidents();
+
+    if (isEngineer) {
+      loadAnalytics();
+      loadResolutionHistory();
+    }
   }
 
   if (authState === "checking") {
@@ -661,6 +730,159 @@ function App() {
               Refresh incidents
             </button>
           </div>
+
+          {isEngineer && (
+            <section className="analytics-section">
+              <div className="analytics-heading">
+                <div>
+                  <p className="eyebrow">Operations overview</p>
+                  <h3>Incident analytics</h3>
+                </div>
+
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    loadAnalytics();
+                    loadResolutionHistory();
+                  }}
+                >
+                  Refresh analytics
+                </button>
+              </div>
+
+              {analyticsState === "loading" && (
+                <p className="state-message">
+                  Loading analytics...
+                </p>
+              )}
+
+              {analyticsState === "error" && (
+                <p className="error-message">
+                  {analyticsError}
+                </p>
+              )}
+
+              {analyticsState === "ready" && analytics && (
+                <>
+                  <div className="analytics-metrics">
+                    <article className="analytics-metric">
+                      <span>Open incidents</span>
+                      <strong>{analytics.open_incidents}</strong>
+                    </article>
+
+                    <article className="analytics-metric">
+                      <span>Critical incidents</span>
+                      <strong>{analytics.critical_incidents}</strong>
+                    </article>
+
+                    <article className="analytics-metric metric-breach">
+                      <span>SLA breached</span>
+                      <strong>{analytics.sla_breached}</strong>
+                    </article>
+
+                    <article className="analytics-metric metric-risk">
+                      <span>SLA at risk</span>
+                      <strong>{analytics.sla_at_risk}</strong>
+                    </article>
+
+                    <article className="analytics-metric">
+                      <span>Average resolution</span>
+                      <strong>
+                        {formatResolutionTime(
+                          analytics.average_resolution_minutes,
+                        )}
+                      </strong>
+                    </article>
+                  </div>
+
+                  <div className="analytics-breakdown">
+                    <section>
+                      <h4>Open incidents by service</h4>
+                      {Object.entries(
+                        analytics.incidents_by_service,
+                      ).map(([serviceName, count]) => (
+                        <p key={serviceName}>
+                          <span>{serviceName}</span>
+                          <strong>{count}</strong>
+                        </p>
+                      ))}
+                    </section>
+
+                    <section>
+                      <h4>Incidents by severity</h4>
+                      {Object.entries(
+                        analytics.incidents_by_severity,
+                      ).map(([severity, count]) => (
+                        <p key={severity}>
+                          <span>{severity}</span>
+                          <strong>{count}</strong>
+                        </p>
+                      ))}
+                    </section>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
+          {isEngineer && (
+            <section className="resolution-history">
+              <div className="analytics-heading">
+                <div>
+                  <p className="eyebrow">Recent activity</p>
+                  <h3>Resolution history</h3>
+                </div>
+              </div>
+
+              {historyState === "loading" && (
+                <p className="state-message">
+                  Loading resolution history...
+                </p>
+              )}
+
+              {historyState === "error" && (
+                <p className="error-message">{historyError}</p>
+              )}
+
+              {historyState === "ready"
+                && resolutionHistory.length === 0 && (
+                <p className="state-message">
+                  No resolved incidents yet.
+                </p>
+              )}
+
+              {historyState === "ready"
+                && resolutionHistory.length > 0 && (
+                <ul className="resolution-history-list">
+                  {resolutionHistory.map((incident) => (
+                    <li key={incident.id}>
+                      <div>
+                        <strong>{incident.title}</strong>
+                        <span>
+                          {incident.service_name}
+                          {" · "}
+                          Resolved by{" "}
+                          {incident.resolved_by || "Unknown engineer"}
+                        </span>
+                      </div>
+
+                      <div>
+                        <strong>
+                          {formatResolutionTime(
+                            incident.resolution_minutes,
+                          )}
+                        </strong>
+                        <span>
+                          {formatDate(incident.resolved_at)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           <section className="filter-bar" aria-label="Filters">
             <input

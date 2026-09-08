@@ -595,3 +595,30 @@ cd frontend
 npm run lint
 npm run build
 Both frontend checks pass.
+
+## Day 27: Operations Analytics
+
+Engineers now have an operations analytics dashboard.
+
+### Analytics
+
+The engineer dashboard shows:
+
+- Open, resolved, and critical incident counts
+- SLA on-track, at-risk, and breached counts
+- Average incident resolution time
+- Open incidents grouped by service
+- Incidents grouped by severity
+- Recent resolution history with resolver, note, date, and duration
+
+### Engineer-Only APIs
+
+- `GET /analytics/incidents`
+- `GET /analytics/resolutions`
+
+Normal users cannot access these internal operations routes.
+
+### Verification
+
+```bash
+docker compose run --rm backend pytest tests -v

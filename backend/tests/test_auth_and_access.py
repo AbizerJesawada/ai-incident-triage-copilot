@@ -204,8 +204,20 @@ def test_normal_user_cannot_use_engineer_routes() -> None:
             headers=get_headers(user),
         )
 
+        analytics_response = client.get(
+            "/analytics/incidents",
+            headers=get_headers(user),
+        )
+
+        history_response = client.get(
+            "/analytics/resolutions",
+            headers=get_headers(user),
+        )
+
         assert resolve_response.status_code == 403
         assert similar_response.status_code == 403
+        assert analytics_response.status_code == 403
+        assert history_response.status_code == 403
     finally:
         delete_test_data(
             incident_ids=[incident.id],

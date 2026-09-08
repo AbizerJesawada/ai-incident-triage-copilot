@@ -323,3 +323,24 @@ class CurrentUserResponse(BaseModel):
     full_name: str
     role: str
     created_at: datetime
+
+class IncidentAnalyticsResponse(BaseModel):
+    total_incidents: int
+    open_incidents: int
+    resolved_incidents: int
+    critical_incidents: int
+    sla_on_track: int
+    sla_at_risk: int
+    sla_breached: int
+    average_resolution_minutes: float | None
+    incidents_by_service: dict[str, int]
+    incidents_by_severity: dict[str, int]
+
+class ResolutionHistoryItemResponse(BaseModel):
+    id: UUID
+    title: str
+    service_name: str
+    resolved_by: str | None
+    resolution_note: str | None
+    resolved_at: datetime
+    resolution_minutes: float | None
